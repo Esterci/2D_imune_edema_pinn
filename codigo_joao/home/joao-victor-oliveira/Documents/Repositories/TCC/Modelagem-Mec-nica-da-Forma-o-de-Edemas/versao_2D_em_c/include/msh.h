@@ -12,7 +12,7 @@
 #define Dn  0.0001                        // termo da difusão do neutrófilo
 #define phi 0.2                           // termo phi do sistema de EDP
 #define ksi 0.0                           // taxa da quimiotaxia
-#define CFL ((Db * k) / ((2 * (h * h))))  // condição de CFL
+#define CFL ((Db * k) / ((2 * (h * h))))  // condição de CFL menor do que 1
 
 void save_result_as_vtk(real **concentration_matrix, unsigned step, unsigned size_x, unsigned size_y, unsigned indent);
 void save_result(real **concentration_matrix, unsigned step, unsigned size_x, unsigned size_y);
