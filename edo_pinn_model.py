@@ -5,6 +5,9 @@ import torch.optim as optim
 import time
 import pickle as pk
 import argparse
+import matplotlib.pyplot as plt
+import os
+
 
 activation_dict = {
     "Elu": nn.ELU,
@@ -23,17 +26,29 @@ def generate_model(arch_str):
     modules = []
 
     for params in hidden_layers:
-        activation, out_neurons = params.split("--")
 
-        if len(modules) == 0:
-            modules.append(nn.Linear(1, int(out_neurons)))
-            modules.append(activation_dict[activation]())
+        if len(params) != 0:
+            activation, out_neurons = params.split("--")
 
-        else:
-            modules.append(nn.Linear(int(in_neurons), int(out_neurons)))
-            modules.append(activation_dict[activation]())
+            if len(modules) == 0:
+                if activation == "Linear":
+                    modules.append(activation_dict[activation](1, int(out_neurons)))
 
-        in_neurons = out_neurons
+                else:
+                    modules.append(nn.Linear(1, int(out_neurons)))
+                    modules.append(activation_dict[activation]())
+
+            else:
+                if activation == "Linear":
+                    modules.append(
+                        activation_dict[activation](int(in_neurons), int(out_neurons))
+                    )
+
+                else:
+                    modules.append(nn.Linear(int(in_neurons), int(out_neurons)))
+                    modules.append(activation_dict[activation]())
+
+            in_neurons = out_neurons
 
     modules.append(nn.Linear(int(in_neurons), 2))
 
@@ -51,6 +66,16 @@ def parseParameters(name):
         var_dict[name] = float(value)
 
     return var_dict
+
+def generateCommand(struct_name, save="False"):
+    params_str = struct_name.split("__")
+
+    for i in range(len(params_str)):
+        params_str[i] = params_str[i].replace("--", " ")
+        params_str[i] = "--" + params_str[i]
+
+
+    return " ".join(params_str) + " --s " + save
 
 
 # Parsing model parameters
@@ -127,18 +152,13 @@ y_n = param_dict["y_n"]
 t_lower = param_dict["t_lower"]
 t_upper = param_dict["t_upper"]
 
-size_t = int(((t_upper - t_lower) / (k)))
+pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs,batch_size) + arch_str
 
-print(
-    "Steps in time = {:d}\n".format(
-        size_t,
-    )
-)
+size_t = int(((t_upper - t_lower) / (k)))
 
 t = torch.arange(t_lower, t_upper, k, requires_grad=True).reshape(-1, 1)
 
-t_numpy = t.cpu().detach().numpy()
-
+t_cpu = t
 
 with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "rb") as f:
     Cp = pk.load(f)
@@ -237,14 +257,10 @@ for epoch in range(n_epochs):
         print(f"Finished epoch {epoch}, latest loss {loss}")
 
 
-import matplotlib.pyplot as plt
-
 fig = plt.figure(figsize=[18, 9])
 
 fig.suptitle('Curva de aprendizagem', fontsize=16)
 
-
-# Plotango 3D
 ax = fig.add_subplot(1, 1, 1)
 
 ax.set_xlabel("iterações")
@@ -252,60 +268,64 @@ ax.set_ylabel("perda")
 ax.plot(range(len(C_pde_loss_it.cpu().numpy())),C_pde_loss_it.cpu().numpy(),label="PDE loss")
 ax.plot(range(len(C_data_loss_it.cpu().numpy())),C_data_loss_it.cpu().numpy(),label="Data loss")
 ax.plot(range(len(C_initial_loss_it.cpu().numpy())),C_initial_loss_it.cpu().numpy(),label="Initial loss")
-# ax.set_yscale("log")
 ax.grid()
 ax.legend()
 
-plt.show()
+plt.savefig("learning_curves/"+pinn_file+".png")
+model_cpu = model.to("cpu")
+
+speed_up = []
+
+for i in range(33):
+    fdm_start = time.time()
+
+    os.system("python3 edo_fdm_model.py " + generateCommand(struct_name, save="False"))
+
+    fdm_end = time.time()
+
+    pinn_start = time.time()
+
+    with torch.no_grad():
+        Cl_pinn, Cp_pinn = model_cpu(t_cpu).split(1, dim=1)
+
+    pinn_end = time.time()
+
+    fdm_time = fdm_end - fdm_start
+
+    pinn_time = pinn_end - pinn_start
+
+    speed_up.append(fdm_time / pinn_time)
 
 
-start = time.time()
+mean_speed_up = np.mean(speed_up)
+std_speed_up = np.std(speed_up)
 
-with torch.no_grad():
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        t = t.to(device)
-        
-    Cl,Cp = model(t).split(1,dim=1)
+rmse = np.mean(
+    [
+        ((Cl_p - Cl_f) ** 2 + (Cp_p - Cp_f) ** 2) ** 0.5
+        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl, Cp)
+    ]
+)
 
-end = time.time()
+max_ae = np.max(
+    [
+        [((Cl_p - Cl_f) ** 2)**0.5, ((Cp_p - Cp_f) ** 2) ** 0.5]
+        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl, Cp)
+    ]
+)
 
+output = {
+    "rmse": rmse,
+    "max_ae": max_ae,
+    "mean_speed_up": mean_speed_up,
+    "std_speed_up": std_speed_up,
+    "Cl_pinn": Cl_pinn,
+    "Cp_pinn": Cp_pinn,
+}
 
-Cl = Cl.cpu().detach().numpy()
-Cp = Cp.cpu().detach().numpy()
+print("Erro absoluto médio",rmse)
+print("Erro absoluto máximo",max_ae)
+print("Speed Up: {} +/-{}".format(mean_speed_up,std_speed_up))
 
-with open("edo_pinn_sim/Cp__" + struct_name + ".pkl", "wb") as f:
-    pk.dump(Cp, f)
-
-with open("edo_pinn_sim/Cl__" + struct_name + ".pkl", "wb") as f:
-    pk.dump(Cl, f)
-
-
-
-import matplotlib.pyplot as plt
-from matplotlib.cm import ScalarMappable
-
-fig = plt.figure(figsize=[18, 9])
-
-fig.suptitle("Resposta imunológica a patógenos", fontsize=16)
-
-
-vmin = 0
-vmax = np.max([np.max(Cl), np.max(Cp)])
-
-# Plotango 3D
-ax = fig.add_subplot(1, 1, 1)
-
-ax.plot(t.cpu().detach().numpy(), Cp, label="Concentração de patógenos")
-ax.plot(t.cpu().detach().numpy(), Cl, label="Concentração de leucócitos")
-ax.set_title("Concentração de bactérias")
-ax.set_xlabel("X")
-ax.set_ylabel("Y")
-ax.set_ylim(vmin, vmax+0.1)
-ax.legend()
-plt.show()
-
-
-
-
-
+with open("edo_pinn_sim/" + pinn_file + ".pkl", "wb") as f:
+    pk.dump(output, f)

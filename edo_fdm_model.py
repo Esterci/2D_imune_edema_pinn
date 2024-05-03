@@ -37,8 +37,6 @@ def pde():
 
     # Computing fdm model
 
-    start = tm.time()
-
     size_tt = int(((t_upper - t_lower) / (k)))
 
     Cn_final = np.zeros((size_tt))
@@ -59,8 +57,6 @@ def pde():
         Cb_final[time] = Cb_new
         Cn_final[time] = Cn_new
 
-    end = tm.time()
-
     if save:
         with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
             pk.dump(Cb_final, f)
@@ -68,7 +64,7 @@ def pde():
         with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
             pk.dump(Cn_final, f)
 
-    return end - start
+    return Cb_final, Cn_final
 
 
 if __name__ == "__main__":
