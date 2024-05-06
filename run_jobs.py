@@ -9,7 +9,7 @@ n_hd_layers = [1, 2, 3, 4]
 n_neurons = [2**2, 2**3, 2**4, 2**5]
 activation_func = ["Elu", "LeakyReLU", "Sigmoid", "Softplus", "Tanh", "Linear"]
 
-n_epochs = [1000, 10000, 20000]
+n_epochs = [1000, 2500, 5000]
 batch_size = [10000, 5000, 1000]
 
 possible_layers = list(product(activation_func, n_neurons))
