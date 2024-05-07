@@ -70,7 +70,7 @@ for n_l in n_hd_layers:
                     "jobs/pinn_" + str(count // 20) + ".job",
                 )
                 add_line(
-                    "#PBS -pinn_e output_files/pinn_" + str(count // 20) + ".e",
+                    "#PBS -e output_files/pinn_" + str(count // 20) + ".e",
                     "jobs/pinn_" + str(count // 20) + ".job",
                 )
                 add_line(
