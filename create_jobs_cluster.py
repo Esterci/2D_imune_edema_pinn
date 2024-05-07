@@ -99,7 +99,7 @@ for n_l in n_hd_layers:
                 )
 
             add_line(
-                ".conda/envs/torch_gpu/bin/python3 edo_pinn_model.py -f "
+                "~/.conda/envs/torch_gpu/bin/python3 edo_pinn_model.py -f "
                 + "-f "
                 + file
                 + " -n "
