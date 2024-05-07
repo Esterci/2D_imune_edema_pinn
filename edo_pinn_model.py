@@ -276,7 +276,7 @@ model_cpu = model.to("cpu")
 
 speed_up = []
 
-for i in range(33):
+for i in range(10):
     fdm_start = time.time()
 
     os.system("python3 edo_fdm_model.py " + generateCommand(struct_name, save="False"))
