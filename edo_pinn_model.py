@@ -129,10 +129,10 @@ parser.add_argument(
 
 parser.add_argument(
     "-g",
-    "--arch_str",
+    "--gpu",
     type=str,
     action="store",
-    dest="arch_str",
+    dest="gpu",
     required=False,
     default="0",
     help="",
@@ -146,6 +146,7 @@ struct_name = args_dict["file"]
 n_epochs = args_dict["n_epochs"]
 batch_size = args_dict["batch_size"]
 arch_str = args_dict["arch_str"]
+gpu = args_dict["gpu"]
 
 model = generate_model(arch_str)
 
@@ -182,7 +183,7 @@ numpy_input = np.array([Cl, Cp]).T
 data_input = torch.tensor(numpy_input, dtype=torch.float32)
 
 if torch.cuda.is_available():
-    device = torch.device("cuda")
+    device = torch.device("cuda:"+gpu)
     t = t.to(device)
     data_input = data_input.to(device)
     model = model.to(device)
