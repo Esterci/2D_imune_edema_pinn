@@ -265,8 +265,8 @@ for epoch in range(n_epochs):
     C_initial_loss_it[epoch] = loss_initial.item()
     C_data_loss_it[epoch] = loss_data.item()
 
-    if epoch % 100 == 0:
-        print(f"Finished epoch {epoch}, latest loss {loss}")
+    # if epoch % 100 == 0:
+    #     print(f"Finished epoch {epoch}, latest loss {loss}")
 
 
 fig = plt.figure(figsize=[18, 9])
@@ -335,9 +335,9 @@ output = {
     "Cp_pinn": Cp_pinn,
 }
 
-print("Erro absoluto médio",rmse)
-print("Erro absoluto máximo",max_ae)
-print("Speed Up: {} +/-{}".format(mean_speed_up,std_speed_up))
+# print("Erro absoluto médio",rmse)
+# print("Erro absoluto máximo",max_ae)
+# print("Speed Up: {} +/-{}".format(mean_speed_up,std_speed_up))
 
 with open("edo_pinn_sim/" + pinn_file + ".pkl", "wb") as f:
     pk.dump(output, f)
