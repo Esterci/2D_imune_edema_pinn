@@ -127,6 +127,17 @@ parser.add_argument(
     help="",
 )
 
+parser.add_argument(
+    "-g",
+    "--arch_str",
+    type=str,
+    action="store",
+    dest="arch_str",
+    required=False,
+    default="0",
+    help="",
+)
+
 args = parser.parse_args()
 
 args_dict = vars(args)

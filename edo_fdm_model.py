@@ -1,7 +1,6 @@
 import numpy as np
 import argparse
 import pickle as pk
-import sys
 
 
 def fb(Cb, Cn, cb, lambd_nb):
@@ -199,8 +198,8 @@ if __name__ == "__main__":
         type=bool,
         action="store",
         dest="save",
-        required=True,
-        default=None,
+        required=False,
+        default=False,
         help="",
     )
 
