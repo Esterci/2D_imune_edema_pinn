@@ -1,0 +1,24 @@
+compute-1-1.localdomain
+Finished epoch 0, latest loss 1.628432255529333e-05
+Finished epoch 100, latest loss 4.124032784602605e-06
+Finished epoch 200, latest loss 7.219858161988668e-06
+Finished epoch 300, latest loss 7.479068244720111e-06
+Finished epoch 400, latest loss 2.797742490656674e-05
+Finished epoch 500, latest loss 9.63095862971386e-06
+Finished epoch 600, latest loss 1.0440207006467972e-05
+Finished epoch 700, latest loss 1.4314186046249233e-05
+Finished epoch 800, latest loss 1.810407411539927e-05
+Finished epoch 900, latest loss 1.0771564120659605e-05
+Finished epoch 1000, latest loss 1.0387949259893503e-05
+Finished epoch 1100, latest loss 2.703442078200169e-05
+Finished epoch 1200, latest loss 1.109222648665309e-05
+Finished epoch 1300, latest loss 1.1751715646823868e-05
+Finished epoch 1400, latest loss 8.932236596592702e-06
+Finished epoch 1500, latest loss 9.97256393020507e-06
+Finished epoch 1600, latest loss 1.3165145901439246e-05
+Finished epoch 1700, latest loss 9.812676580622792e-06
+Finished epoch 1800, latest loss 1.0391390787845012e-05
+Finished epoch 1900, latest loss 9.792088349058758e-06
+Erro absoluto médio 0.01409119
+Erro absoluto máximo 0.04903716
+Speed Up: 3.44450243964626 +/-0.48780541265509275
