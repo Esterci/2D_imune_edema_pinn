@@ -16,8 +16,15 @@ activation_dict = {
     "Softplus": nn.Softplus,
     "Tanh": nn.Tanh,
     "Linear": nn.Linear,
-    "Bilinear": nn.Bilinear,
+    "ReLU": nn.ReLU,
+    "RReLU": nn.RReLU,
+    "SELU": nn.SELU,
+    "CELU": nn.CELU,
+    "GELU": nn.GELU,
+    "SiLU": nn.SiLU,
+    "GLU": nn.GLU,
 }
+
 
 def generate_model(arch_str):
 
@@ -54,18 +61,20 @@ def generate_model(arch_str):
 
     return nn.Sequential(*modules)
 
+
 def parseParameters(name):
 
     var_dict = {}
 
-    param_tuple = name.split('__')
+    param_tuple = name.split("__")
 
     for tuple in param_tuple:
-        name, value = tuple.split('--')
+        name, value = tuple.split("--")
 
         var_dict[name] = float(value)
 
     return var_dict
+
 
 def generateCommand(struct_name, save="False"):
     params_str = struct_name.split("__")
@@ -73,7 +82,6 @@ def generateCommand(struct_name, save="False"):
     for i in range(len(params_str)):
         params_str[i] = params_str[i].replace("--", " ")
         params_str[i] = "--" + params_str[i]
-
 
     return " ".join(params_str) + " --s " + save
 
@@ -164,7 +172,7 @@ y_n = param_dict["y_n"]
 t_lower = param_dict["t_lower"]
 t_upper = param_dict["t_upper"]
 
-pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs,batch_size) + arch_str
+pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
 
 size_t = int(((t_upper - t_lower) / (k)))
 
@@ -183,10 +191,11 @@ numpy_input = np.array([Cl, Cp]).T
 data_input = torch.tensor(numpy_input, dtype=torch.float32)
 
 if torch.cuda.is_available():
-    device = torch.device("cuda:"+gpu)
+    device = torch.device("cuda:" + gpu)
     t = t.to(device)
     data_input = data_input.to(device)
     model = model.to(device)
+
 
 def initial_condition(t):
     Cl = torch.zeros_like(t)
@@ -255,7 +264,7 @@ for epoch in range(n_epochs):
 
         loss_data = loss_fn(C_pred, data_input[i : i + batch_size])
 
-        loss = loss_initial + loss_pde + loss_data
+        loss = 10 * loss_initial + loss_pde + loss_data
 
         optimizer.zero_grad()
         loss.backward()
@@ -271,19 +280,31 @@ for epoch in range(n_epochs):
 
 fig = plt.figure(figsize=[18, 9])
 
-fig.suptitle('Curva de aprendizagem', fontsize=16)
+fig.suptitle("Curva de aprendizagem", fontsize=16)
 
 ax = fig.add_subplot(1, 1, 1)
 
 ax.set_xlabel("iterações")
 ax.set_ylabel("perda")
-ax.plot(range(len(C_pde_loss_it.cpu().numpy())),C_pde_loss_it.cpu().numpy(),label="PDE loss")
-ax.plot(range(len(C_data_loss_it.cpu().numpy())),C_data_loss_it.cpu().numpy(),label="Data loss")
-ax.plot(range(len(C_initial_loss_it.cpu().numpy())),C_initial_loss_it.cpu().numpy(),label="Initial loss")
+ax.plot(
+    range(len(C_pde_loss_it.cpu().numpy())),
+    C_pde_loss_it.cpu().numpy(),
+    label="PDE loss",
+)
+ax.plot(
+    range(len(C_data_loss_it.cpu().numpy())),
+    C_data_loss_it.cpu().numpy(),
+    label="Data loss",
+)
+ax.plot(
+    range(len(C_initial_loss_it.cpu().numpy())),
+    C_initial_loss_it.cpu().numpy(),
+    label="Initial loss",
+)
 ax.grid()
 ax.legend()
 
-plt.savefig("learning_curves/"+pinn_file+".png")
+plt.savefig("learning_curves/" + pinn_file + ".png")
 model_cpu = model.to("cpu")
 
 speed_up = []
@@ -321,7 +342,7 @@ rmse = np.mean(
 
 max_ae = np.max(
     [
-        [((Cl_p - Cl_f) ** 2)**0.5, ((Cp_p - Cp_f) ** 2) ** 0.5]
+        [((Cl_p - Cl_f) ** 2) ** 0.5, ((Cp_p - Cp_f) ** 2) ** 0.5]
         for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl, Cp)
     ]
 )
