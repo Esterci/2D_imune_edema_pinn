@@ -4,3 +4,4 @@
 *.png
 *.job
 get_files.sh
+send_jobs.sh
