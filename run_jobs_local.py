@@ -9,7 +9,7 @@ n_hd_layers = [1, 2, 3, 4]
 n_neurons = [2**2, 2**3, 2**4, 2**5]
 activation_func = ["Elu", "LeakyReLU", "Sigmoid", "Softplus", "Tanh", "Linear"]
 
-batch_size = [(10000,500), (5000,1000), (1000,2000)]
+batch_size = [(10000, 500), (5000, 1000), (1000, 2000)]
 
 possible_layers = list(product(activation_func, n_neurons))
 
@@ -23,8 +23,10 @@ for n_l in n_hd_layers:
             for batch in batch_size:
 
                 pinn_file = (
-                    "edo_pinn_sim/epochs_{}__batch_{}__arch_".format(batch[1], batch[0]) + arch_str + ".pkl"
-                ) 
+                    "edo_pinn_sim/epochs_{}__batch_{}__arch_".format(batch[1], batch[0])
+                    + arch_str
+                    + ".pkl"
+                )
 
                 if pinn_file not in file_list:
                     print(pinn_file)
