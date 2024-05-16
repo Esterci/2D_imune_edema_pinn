@@ -1,160 +1,104 @@
 
-real	0m46.487s
-user	0m39.919s
-sys	0m2.523s
+real	0m37.025s
+user	0m31.876s
+sys	0m2.563s
 
-real	2m6.700s
-user	2m0.233s
-sys	0m2.374s
+real	1m18.656s
+user	1m15.161s
+sys	0m1.688s
 
-real	1m21.523s
-user	1m13.288s
-sys	0m2.146s
+real	0m36.922s
+user	0m32.745s
+sys	0m2.698s
 
-real	2m50.946s
-user	2m41.040s
-sys	0m3.100s
+real	1m30.421s
+user	1m21.991s
+sys	0m6.376s
 
-real	1m33.106s
-user	1m18.145s
-sys	0m7.758s
+real	0m36.122s
+user	0m32.112s
+sys	0m2.481s
 
-real	3m3.177s
-user	2m52.579s
-sys	0m3.193s
+real	1m30.563s
+user	1m18.537s
+sys	0m9.957s
 
-real	2m19.482s
-user	2m0.445s
-sys	0m10.284s
+real	0m40.557s
+user	0m32.514s
+sys	0m6.354s
 
-real	2m57.159s
-user	2m45.469s
-sys	0m4.730s
+real	1m31.189s
+user	1m22.336s
+sys	0m6.731s
+Traceback (most recent call last):
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 159, in <module>
+    model = generate_model(arch_str)
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 56, in generate_model
+    modules.append(activation_dict[activation]())
+KeyError: 'EluTanh'
 
-real	1m44.668s
-user	1m26.203s
-sys	0m9.511s
+real	0m1.740s
+user	0m1.217s
+sys	0m0.181s
+Traceback (most recent call last):
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 159, in <module>
+    model = generate_model(arch_str)
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 56, in generate_model
+    modules.append(activation_dict[activation]())
+KeyError: 'EluTanh'
 
-real	5m14.139s
-user	4m24.998s
-sys	0m27.718s
+real	0m1.786s
+user	0m1.241s
+sys	0m0.169s
+Traceback (most recent call last):
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 159, in <module>
+    model = generate_model(arch_str)
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 56, in generate_model
+    modules.append(activation_dict[activation]())
+KeyError: 'EluTanh'
 
-real	1m48.743s
-user	1m30.455s
-sys	0m9.969s
+real	0m1.809s
+user	0m1.253s
+sys	0m0.176s
+Traceback (most recent call last):
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 159, in <module>
+    model = generate_model(arch_str)
+  File "/home/thiago.esterci/2D_imune_edema_pinn/edo_pinn_model.py", line 56, in generate_model
+    modules.append(activation_dict[activation]())
+KeyError: 'EluTanh'
 
-real	3m2.537s
-user	2m53.147s
-sys	0m2.713s
+real	0m1.708s
+user	0m1.203s
+sys	0m0.187s
 
-real	2m15.921s
-user	1m52.397s
-sys	0m12.558s
+real	0m35.564s
+user	0m31.685s
+sys	0m2.528s
 
-real	2m55.413s
-user	2m44.347s
-sys	0m4.045s
+real	1m17.772s
+user	1m14.311s
+sys	0m1.770s
 
-real	1m19.893s
-user	1m5.081s
-sys	0m8.973s
+real	0m36.438s
+user	0m32.737s
+sys	0m2.327s
 
-real	3m7.930s
-user	2m37.450s
-sys	0m20.232s
+real	1m30.017s
+user	1m21.468s
+sys	0m6.516s
 
-real	0m56.493s
-user	0m48.265s
-sys	0m5.019s
+real	0m40.538s
+user	0m32.586s
+sys	0m6.267s
 
-real	3m0.812s
-user	2m35.274s
-sys	0m16.696s
+real	1m24.097s
+user	1m20.601s
+sys	0m1.681s
 
-real	0m59.626s
-user	0m51.800s
-sys	0m4.951s
+real	0m38.705s
+user	0m34.690s
+sys	0m2.542s
 
-real	2m10.165s
-user	2m4.310s
-sys	0m2.273s
-
-real	0m46.093s
-user	0m41.668s
-sys	0m2.570s
-
-real	1m57.646s
-user	1m52.812s
-sys	0m2.146s
-
-real	1m0.788s
-user	0m54.282s
-sys	0m4.140s
-
-real	2m46.047s
-user	2m30.498s
-sys	0m11.500s
-
-real	0m35.202s
-user	0m31.081s
-sys	0m2.541s
-
-real	1m40.441s
-user	1m29.315s
-sys	0m8.295s
-
-real	0m32.295s
-user	0m29.686s
-sys	0m1.262s
-
-real	1m28.051s
-user	1m24.356s
-sys	0m1.821s
-
-real	0m35.315s
-user	0m31.367s
-sys	0m2.381s
-
-real	1m34.208s
-user	1m28.709s
-sys	0m3.331s
-
-real	0m32.009s
-user	0m29.356s
-sys	0m1.330s
-
-real	1m25.042s
-user	1m21.368s
-sys	0m1.845s
-
-real	0m33.987s
-user	0m30.560s
-sys	0m2.071s
-
-real	1m39.981s
-user	1m30.553s
-sys	0m6.662s
-
-real	0m32.963s
-user	0m29.946s
-sys	0m1.671s
-
-real	1m32.581s
-user	1m28.855s
-sys	0m1.790s
-
-real	0m33.434s
-user	0m29.799s
-sys	0m2.241s
-
-real	1m29.335s
-user	1m23.785s
-sys	0m3.321s
-
-real	0m35.033s
-user	0m31.452s
-sys	0m2.208s
-
-real	1m25.254s
-user	1m21.845s
-sys	0m1.675s
+real	1m34.854s
+user	1m26.862s
+sys	0m5.959s

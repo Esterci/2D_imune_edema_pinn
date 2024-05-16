@@ -35,11 +35,12 @@ v_gpu = [
 ]
 
 file = "k--0.0001__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
-n_hd_layers = [3]
-n_neurons = [2**3, 2**4, 2**5]
+n_hd_layers = [1, 2]
+n_neurons = [2**2, 2**3, 2**4]
 activation_func = [
     "LeakyReLU",
     "Sigmoid",
+    "Elu",
     "Tanh",
     "ReLU",
     "SiLU",
@@ -83,11 +84,11 @@ for n_l in n_hd_layers:
                     "jobs/pinn_" + str(count // 20) + ".job",
                 )
                 add_line(
-                    "#PBS -o error_files/pinn_" + str(count // 20) + ".o",
+                    "#PBS -e error_files/pinn_" + str(count // 20) + ".e",
                     "jobs/pinn_" + str(count // 20) + ".job",
                 )
                 add_line(
-                    "#PBS -e output_files/pinn_" + str(count // 20) + ".e",
+                    "#PBS -o output_files/pinn_" + str(count // 20) + ".o",
                     "jobs/pinn_" + str(count // 20) + ".job",
                 )
                 add_line(
