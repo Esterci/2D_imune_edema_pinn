@@ -264,7 +264,7 @@ for epoch in range(n_epochs):
 
         loss_data = loss_fn(C_pred, data_input[i : i + batch_size])
 
-        loss = 10 * loss_initial + loss_pde + loss_data
+        loss = 10 * loss_initial + loss_pde + 10 * loss_data
 
         optimizer.zero_grad()
         loss.backward()

@@ -3,5 +3,6 @@
 *.csv
 *.png
 *.job
+*.zip
 get_files.sh
 send_jobs.sh
