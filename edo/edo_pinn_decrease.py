@@ -27,13 +27,11 @@ activation_dict = {
 
 
 def generate_model(arch_str):
-
     hidden_layers = arch_str.split("__")
 
     modules = []
 
     for params in hidden_layers:
-
         if len(params) != 0:
             activation, out_neurons = params.split("--")
 
@@ -63,7 +61,6 @@ def generate_model(arch_str):
 
 
 def parseParameters(name):
-
     var_dict = {}
 
     param_tuple = name.split("__")
@@ -204,7 +201,6 @@ def initial_condition(t):
 
 
 def pde(t, model):
-
     Cl, Cp = model(t).split(1, dim=1)
 
     # Calculando Cp
@@ -249,7 +245,6 @@ C_initial = initial_condition(t).to(device)
 
 for epoch in range(n_epochs):
     for i in range(0, len(t), batch_size):
-
         t_initial = torch.zeros_like(t[i : i + batch_size])
 
         C_initial_pred = model(t_initial)
@@ -314,7 +309,6 @@ output = {
 }
 
 for model in output:
-
     with open(
         "edo_fdm_sim/Cp__k--" + str(output[model]["k"]) + "__" + struct_name + ".pkl",
         "rb",

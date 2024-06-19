@@ -15,7 +15,6 @@ def fn(Cb, Cn, Cn_max, y_n, lambd_bn, mi_n):
 
 
 def argsDictionary(args):
-
     var_dict = vars(args)
 
     structure_name = []
@@ -31,7 +30,6 @@ def argsDictionary(args):
 
 
 def pde():
-
     import time as tm
 
     # Computing fdm model
@@ -45,7 +43,6 @@ def pde():
     Cb_new = 0.2
 
     for time in range(size_tt):
-
         Cn_old = Cn_new
         Cb_old = Cb_new
 
@@ -67,7 +64,6 @@ def pde():
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="", add_help=False)
     parser = argparse.ArgumentParser()
 

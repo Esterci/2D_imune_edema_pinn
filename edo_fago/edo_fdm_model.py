@@ -13,7 +13,6 @@ def fn(Cb, Cn, Cn_max, y_n, lambd_bn, mi_n):
 def fdm(
     k, phi, ksi, cb, Cn_max, lambd_nb, mi_n, lambd_bn, y_n, t_lower, t_upper, plot=False
 ):
-
     # Computing fdm model
 
     size_tt = int(((t_upper - t_lower) / (k))) + 1
@@ -28,7 +27,6 @@ def fdm(
     Cn_final[0] = Cn_new
 
     for time in range(1, size_tt):
-
         Cn_old = Cn_new
         Cb_old = Cb_new
 

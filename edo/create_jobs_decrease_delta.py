@@ -5,11 +5,9 @@ import numpy as np
 
 
 def add_line(line, out):
-
     # Open the file in append & read mode ('a+')
 
     with open(out, "a+") as file_object:
-
         # Move read cursor to the start of file.
         file_object.seek(0)
 
@@ -52,7 +50,6 @@ net_arch = {
 # writing jobs
 
 for count, arch in enumerate(net_arch):
-
     add_line("#!/bin/bash", "jobs/pinn_" + str(count) + ".job")
     add_line(
         "#----------------------------------------------------------",

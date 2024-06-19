@@ -27,22 +27,20 @@ activation_dict = {
 
 
 def generate_model(arch_str):
-
     hidden_layers = arch_str.split("__")
 
     modules = []
 
     for params in hidden_layers:
-
         if len(params) != 0:
             activation, out_neurons = params.split("--")
 
             if len(modules) == 0:
                 if activation == "Linear":
-                    modules.append(activation_dict[activation](1, int(out_neurons)))
+                    modules.append(activation_dict[activation](2, int(out_neurons)))
 
                 else:
-                    modules.append(nn.Linear(1, int(out_neurons)))
+                    modules.append(nn.Linear(2, int(out_neurons)))
                     modules.append(activation_dict[activation]())
 
             else:
@@ -63,7 +61,6 @@ def generate_model(arch_str):
 
 
 def parseParameters(name):
-
     var_dict = {}
 
     param_tuple = name.split("__")
@@ -83,7 +80,6 @@ def initial_condition(t):
 
 
 def pde(t, lambd_nb, model):
-
     mesh = torch.cat([t, lambd_nb], dim=1)
 
     Cl, Cp = model(mesh).split(1, dim=1)
@@ -225,7 +221,6 @@ print(
 t_np = np.linspace(t_lower, t_upper, num=size_t + 1, endpoint=True)
 
 for i, lbm_nb in enumerate(lmb_list):
-    
     if i == 0:
         Cp_old, Cl_old = fdm(
             k,
@@ -279,6 +274,7 @@ if torch.cuda.is_available():
         .to(device)
     )
     data_input = torch.tensor(data_input_np, dtype=torch.float32).to(device)
+    model = model.to(device)
 
 else:
     device = torch.device("cpu")
@@ -286,6 +282,7 @@ else:
     lambd_nb = torch.tensor(ll, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
     data_input = torch.tensor(data_input_np, dtype=torch.float32)
 
+print(device)
 
 loss_fn = nn.MSELoss()  # binary cross entropy
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -297,9 +294,7 @@ C_initial = initial_condition(t).to(device)
 
 for epoch in range(n_epochs):
     for i in range(0, len(t), batch_size):
-
-       
-        t_initial = torch.zeros_like(t[i : i + batch_size])
+        t_initial = torch.zeros_like(t[i : i + batch_size]).to(device)
 
         mesh = torch.cat([t_initial, lambd_nb[i : i + batch_size]], dim=1)
         C_initial_pred = model(mesh)
@@ -316,7 +311,7 @@ for epoch in range(n_epochs):
 
         loss_data = loss_fn(C_pred, data_input[i : i + batch_size])
 
-        loss = 10*loss_initial + loss_pde + 10*loss_data
+        loss = 10 * loss_initial + loss_pde + 10 * loss_data
         # loss = loss_initial + loss_data
 
         optimizer.zero_grad()
@@ -348,11 +343,9 @@ speed_up = []
 mesh = torch.cat([t, lambd_nb], dim=1).to("cpu")
 
 for i in range(10):
-
     fdm_start = time.time()
 
     for lbm_nb in lmb_list:
-
         _, _ = fdm(
             k,
             phi,
@@ -389,14 +382,14 @@ std_speed_up = np.std(speed_up)
 rmse = np.mean(
     [
         ((Cl_p - Cl_f) ** 2 + (Cp_p - Cp_f) ** 2) ** 0.5
-        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl, Cp)
+        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl_old, Cp_old)
     ]
 )
 
 max_ae = np.max(
     [
         [((Cl_p - Cl_f) ** 2) ** 0.5, ((Cp_p - Cp_f) ** 2) ** 0.5]
-        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl, Cp)
+        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl_old, Cp_old)
     ]
 )
 
@@ -409,10 +402,10 @@ output = {
     "Cp_pinn": Cp_pinn,
 }
 
-print("Erro absoluto médio",rmse)
-print("Erro absoluto máximo",max_ae)
-print("Speed Up: {} +/-{}".format(mean_speed_up,std_speed_up))
-print("="*20+"\n")
+print("Erro absoluto médio", rmse)
+print("Erro absoluto máximo", max_ae)
+print("Speed Up: {} +/-{}".format(mean_speed_up, std_speed_up))
+print("=" * 20 + "\n\n\n")
 
 with open("edo_pinn_sim/" + pinn_file + ".pkl", "wb") as f:
     pk.dump(output, f)

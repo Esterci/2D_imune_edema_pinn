@@ -5,11 +5,9 @@ import numpy as np
 
 
 def add_line(line, out):
-
     # Open the file in append & read mode ('a+')
 
     with open(out, "a+") as file_object:
-
         # Move read cursor to the start of file.
         file_object.seek(0)
 
@@ -36,7 +34,7 @@ v_gpu = [
 
 file = "k--0.0001__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
 n_hd_layers = [1, 2]
-n_neurons = [2 ** 2, 2 ** 3, 2 ** 4, 2 ** 5]
+n_neurons = [2**2, 2**3, 2**4, 2**5]
 activation_func = [
     "LeakyReLU",
     "Sigmoid",
@@ -55,7 +53,6 @@ count = 0
 # writing jobs
 
 for n_l in n_hd_layers:
-
     layers_combinations = product(possible_layers, repeat=n_l)
 
     for layers_comb in product(possible_layers, repeat=n_l):
@@ -70,7 +67,6 @@ for n_l in n_hd_layers:
             )
 
             if count % 20 == 0:
-
                 add_line("#!/bin/bash", "jobs/pinn_" + str(count // 20) + ".job")
                 add_line(
                     "#----------------------------------------------------------",
