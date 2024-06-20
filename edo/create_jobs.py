@@ -135,7 +135,7 @@ for n_l in n_hd_layers:
 
             count += 1
 
-if count %20 != 0:
+if count % 20 != 0:
     jobs = (count // 20) + 1
 
 else:

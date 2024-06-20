@@ -65,6 +65,7 @@ def pde():
 
     return Cb_final, Cn_final
 
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="", add_help=False)
@@ -220,5 +221,5 @@ if __name__ == "__main__":
     t_lower = args_dict["t_lower"]
     t_upper = args_dict["t_upper"]
     save = args_dict["save"]
-    
+
     pde()

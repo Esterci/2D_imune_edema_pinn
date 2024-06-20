@@ -1,8 +1,5 @@
 import numpy as np
-import argparse
-import pickle as pk
 import matplotlib.pyplot as plt
-
 
 def fb(Cb, Cn, cb, lambd_nb):
     return (cb - lambd_nb * Cn) * Cb
@@ -12,28 +9,9 @@ def fn(Cb, Cn, Cn_max, y_n, lambd_bn, mi_n):
     return y_n * Cb * (Cn_max - Cn) - lambd_bn * Cn * Cb - mi_n * Cn
 
 
-# Parsing model parameters
-
-
-def argsDictionary(args):
-
-    var_dict = vars(args)
-
-    structure_name = []
-
-    for var in var_dict:
-        if not var == "file":
-            hp_n_values = str(var) + "-" * 2 + str(var_dict[var])
-            structure_name.append(hp_n_values)
-
-    structure_name = ("_" * 2).join(structure_name).split("__save")[0]
-
-    return var_dict, structure_name
-
-
-def pde():
-
-    import time as tm
+def fdm(
+    k, phi, ksi, cb, Cn_max, lambd_nb, mi_n, lambd_bn, y_n, t_lower, t_upper, plot=False
+):
 
     # Computing fdm model
 
@@ -45,7 +23,10 @@ def pde():
     Cn_new = 0
     Cb_new = 0.2
 
-    for time in range(size_tt):
+    Cb_final[0] = Cb_new
+    Cn_final[0] = Cn_new
+
+    for time in range(1, size_tt):
 
         Cn_old = Cn_new
         Cb_old = Cb_new
@@ -57,14 +38,10 @@ def pde():
         Cb_final[time] = Cb_new
         Cn_final[time] = Cn_new
 
-    if save:
-        with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
-            pk.dump(Cb_final, f)
-
-        with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
-            pk.dump(Cn_final, f)
-
     if plot:
+        # Turn interactive plotting off
+        plt.ioff()
+
         fig = plt.figure(figsize=[18, 9])
 
         fig.suptitle("Resposta imunológica a patógenos", fontsize=16)
@@ -91,177 +68,61 @@ def pde():
         ax.legend()
         ax.grid()
 
+        struct_name = (
+            "k--"
+            + str(k)
+            + "__phi--"
+            + str(phi)
+            + "__ksi--"
+            + str(ksi)
+            + "__cb--"
+            + str(cb)
+            + "__Cn_max--"
+            + str(Cn_max)
+            + "__lambd_nb--"
+            + str(lambd_nb)
+            + "__mi_n--"
+            + str(mi_n)
+            + "__lambd_bn--"
+            + str(lambd_bn)
+            + "__y_n--"
+            + str(y_n)
+            + "__t_lower--"
+            + str(t_lower)
+            + "__t_upper--"
+            + str(t_upper)
+        )
+
         plt.savefig("edo_fdm_plot/" + struct_name + ".png")
+
+        del fig
 
     return Cb_final, Cn_final
 
 
 if __name__ == "__main__":
+    k = 1.0
+    t_lower = 0.0
+    t_upper = 5.0
+    phi = 0.2
+    ksi = 0.0
+    cb = 0.15
+    C_nmax = 0.55
+    mi_n = 0.2
+    lambd_bn = 0.1
+    y_n = 0.1
 
-    parser = argparse.ArgumentParser(description="", add_help=False)
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "-k",
-        "--k",
-        type=float,
-        action="store",
-        dest="k",
-        required=True,
-        default=None,
-        help="",
+    Cp_old, Cl_old = fdm(
+        k,
+        phi,
+        ksi,
+        cb,
+        C_nmax,
+        1.8,
+        mi_n,
+        lambd_bn,
+        y_n,
+        t_lower,
+        t_upper,
+        plot="False",
     )
-
-    parser.add_argument(
-        "-p",
-        "--phi",
-        type=float,
-        action="store",
-        dest="phi",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-ksi",
-        "--ksi",
-        type=float,
-        action="store",
-        dest="ksi",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-c",
-        "--cb",
-        type=float,
-        action="store",
-        dest="cb",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-cmax",
-        "--Cn_max",
-        type=float,
-        action="store",
-        dest="Cn_max",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-l_nb",
-        "--lambd_nb",
-        type=float,
-        action="store",
-        dest="lambd_nb",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-m",
-        "--mi_n",
-        type=float,
-        action="store",
-        dest="mi_n",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-l_bn",
-        "--lambd_bn",
-        type=float,
-        action="store",
-        dest="lambd_bn",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-y",
-        "--y_n",
-        type=float,
-        action="store",
-        dest="y_n",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-tl",
-        "--t_lower",
-        type=float,
-        action="store",
-        dest="t_lower",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-tu",
-        "--t_upper",
-        type=float,
-        action="store",
-        dest="t_upper",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-s",
-        "--save",
-        type=bool,
-        action="store",
-        dest="save",
-        required=False,
-        default=False,
-        help="",
-    )
-
-    parser.add_argument(
-        "-pt",
-        "--plot",
-        type=bool,
-        action="store",
-        dest="plot",
-        required=False,
-        default=False,
-        help="",
-    )
-
-    args = parser.parse_args()
-
-    args_dict, struct_name = argsDictionary(args)
-
-    # initializaing fdm model
-
-    k = args_dict["k"]
-    phi = args_dict["phi"]
-    ksi = args_dict["ksi"]
-    cb = args_dict["cb"]
-    Cn_max = args_dict["Cn_max"]
-    lambd_nb = args_dict["lambd_nb"]
-    mi_n = args_dict["mi_n"]
-    lambd_bn = args_dict["lambd_bn"]
-    y_n = args_dict["y_n"]
-    t_lower = args_dict["t_lower"]
-    t_upper = args_dict["t_upper"]
-    save = args_dict["save"]
-    plot = args_dict["plot"]
-
-    pde()
