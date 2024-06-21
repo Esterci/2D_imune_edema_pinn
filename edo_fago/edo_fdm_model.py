@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def fb(Cb, Cn, cb, lambd_nb):
     return (cb - lambd_nb * Cn) * Cb
 
