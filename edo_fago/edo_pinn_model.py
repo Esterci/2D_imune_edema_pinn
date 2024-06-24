@@ -6,7 +6,7 @@ import time
 import pickle as pk
 import argparse
 import matplotlib.pyplot as plt
-import os
+from edo_fdm_model import fdm
 
 
 activation_dict = {
@@ -76,14 +76,48 @@ def parseParameters(name):
     return var_dict
 
 
-def generateCommand(struct_name, save="False"):
-    params_str = struct_name.split("__")
+def initial_condition(t):
+    Cl = torch.zeros_like(t)
+    Cp = torch.zeros_like(t) + 0.2
+    return torch.cat([Cl, Cp], dim=1)
 
-    for i in range(len(params_str)):
-        params_str[i] = params_str[i].replace("--", " ")
-        params_str[i] = "--" + params_str[i]
 
-    return " ".join(params_str) + " --s " + save
+def pde(t, lambd_nb, model):
+
+    mesh = torch.cat([t, lambd_nb], dim=1)
+
+    Cl, Cp = model(mesh).split(1, dim=1)
+
+    # Calculando Cp
+
+    dCp_dt = torch.autograd.grad(
+        Cp,
+        t,
+        grad_outputs=torch.ones_like(Cp),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    Cp_eq = (cb - lambd_nb * Cl) * Cp * phi - dCp_dt
+
+    # Calculando Cl
+
+    dCl_dt = torch.autograd.grad(
+        Cl,
+        t,
+        grad_outputs=torch.ones_like(Cl),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    Cl_eq = (y_n * Cp * (C_nmax - 1) - (lambd_bn * Cp + mi_n)) * Cl * phi - dCl_dt
+
+    del dCl_dt
+    del dCp_dt
+
+    torch.cuda.empty_cache()
+
+    return torch.cat([Cl_eq, Cp_eq], dim=1)
 
 
 # Parsing model parameters
@@ -176,67 +210,81 @@ pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
 
 size_t = int(((t_upper - t_lower) / (k)))
 
-t = torch.arange(t_lower, t_upper, k, requires_grad=True).reshape(-1, 1)
+lmb_var = 0.4
 
-t_cpu = t
+lmb_list = np.linspace(
+    1.8 * (1 - lmb_var), 1.8 * (1 + lmb_var), num=size_t + 1, endpoint=True
+)
 
-with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "rb") as f:
-    Cp = pk.load(f)
+print(
+    "Steps in time = {:d}\n".format(
+        size_t,
+    )
+)
 
-with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "rb") as f:
-    Cl = pk.load(f)
+t_np = np.linspace(t_lower, t_upper, num=size_t + 1, endpoint=True)
+
+for i, lbm_nb in enumerate(lmb_list):
+    
+    if i == 0:
+        Cp_old, Cl_old = fdm(
+            k,
+            phi,
+            ksi,
+            cb,
+            C_nmax,
+            lbm_nb,
+            mi_n,
+            lambd_bn,
+            y_n,
+            t_lower,
+            t_upper,
+            plot=False,
+        )
+
+    else:
+        Cp_new, Cl_new = fdm(
+            k,
+            phi,
+            ksi,
+            cb,
+            C_nmax,
+            lbm_nb,
+            mi_n,
+            lambd_bn,
+            y_n,
+            t_lower,
+            t_upper,
+            plot=False,
+        )
+
+        Cp_old = np.vstack((Cp_old.copy(), Cp_new))
+        Cl_old = np.vstack((Cl_old.copy(), Cl_new))
 
 
-numpy_input = np.array([Cl, Cp]).T
-data_input = torch.tensor(numpy_input, dtype=torch.float32)
+tt, ll = np.meshgrid(t_np, lmb_list)
+
+data_input_np = np.array([Cl_old.flatten(), Cp_old.flatten()]).T
 
 if torch.cuda.is_available():
-    device = torch.device("cuda:" + gpu)
-    t = t.to(device)
-    data_input = data_input.to(device)
-    model = model.to(device)
+    device = torch.device("cuda")
+    t = (
+        torch.tensor(tt, dtype=torch.float32, requires_grad=True)
+        .reshape(-1, 1)
+        .to(device)
+    )
+    lambd_nb = (
+        torch.tensor(ll, dtype=torch.float32, requires_grad=True)
+        .reshape(-1, 1)
+        .to(device)
+    )
+    data_input = torch.tensor(data_input_np, dtype=torch.float32).to(device)
 
-
-def initial_condition(t):
-    Cl = torch.zeros_like(t)
-    Cp = torch.zeros_like(t) + 0.2
-    return torch.cat([Cl, Cp], dim=1)
-
-
-def pde(t, model):
-
-    Cl, Cp = model(t).split(1, dim=1)
-
-    # Calculando Cp
-
-    dCp_dt = torch.autograd.grad(
-        Cp,
-        t,
-        grad_outputs=torch.ones_like(Cp),
-        create_graph=True,
-        retain_graph=True,
-    )[0]
-
-    Cp_eq = (cb - lambd_nb * Cl) * Cp * phi - dCp_dt
-
-    # Calculando Cl
-
-    dCl_dt = torch.autograd.grad(
-        Cl,
-        t,
-        grad_outputs=torch.ones_like(Cl),
-        create_graph=True,
-        retain_graph=True,
-    )[0]
-
-    Cl_eq = (y_n * Cp * (C_nmax - 1) - (lambd_bn * Cp + mi_n)) * Cl * phi - dCl_dt
-
-    del dCl_dt
-    del dCp_dt
-
-    torch.cuda.empty_cache()
-
-    return torch.cat([Cl_eq, Cp_eq], dim=1)
+else:
+    device = torch.device("cpu")
+    t = torch.tensor(tt, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
+    lambd_nb = torch.tensor(ll, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
+    data_input = torch.tensor(data_input_np, dtype=torch.float32)
 
 
 loss_fn = nn.MSELoss()  # binary cross entropy
@@ -250,25 +298,31 @@ C_initial = initial_condition(t).to(device)
 for epoch in range(n_epochs):
     for i in range(0, len(t), batch_size):
 
+       
         t_initial = torch.zeros_like(t[i : i + batch_size])
 
-        C_initial_pred = model(t_initial)
+        mesh = torch.cat([t_initial, lambd_nb[i : i + batch_size]], dim=1)
+        C_initial_pred = model(mesh)
 
         loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
 
-        C_pred = model(t[i : i + batch_size])
+        mesh = torch.cat([t[i : i + batch_size], lambd_nb[i : i + batch_size]], dim=1)
+        C_pred = model(mesh)
 
         loss_pde = loss_fn(
-            pde(t[i : i + batch_size], model), torch.cat([t_initial, t_initial], dim=1)
+            pde(t[i : i + batch_size], lambd_nb[i : i + batch_size], model),
+            torch.cat([t_initial, t_initial], dim=1),
         )
 
         loss_data = loss_fn(C_pred, data_input[i : i + batch_size])
 
-        loss = 10 * loss_initial + loss_pde + 10 * loss_data
+        loss = 10*loss_initial + loss_pde + 10*loss_data
+        # loss = loss_initial + loss_data
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        # lr_scheduler.step()
 
     C_pde_loss_it[epoch] = loss_pde.item()
     C_initial_loss_it[epoch] = loss_initial.item()
@@ -278,48 +332,48 @@ for epoch in range(n_epochs):
     #     print(f"Finished epoch {epoch}, latest loss {loss}")
 
 
-fig = plt.figure(figsize=[18, 9])
+with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
+    pk.dump(C_pde_loss_it.cpu().numpy(), f)
 
-fig.suptitle("Curva de aprendizagem", fontsize=16)
+with open("learning_curves/C_data_loss_it__" + pinn_file + ".pkl", "wb") as f:
+    pk.dump(C_data_loss_it.cpu().numpy(), f)
 
-ax = fig.add_subplot(1, 1, 1)
+with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
+    pk.dump(C_initial_loss_it.cpu().numpy(), f)
 
-ax.set_xlabel("iterações")
-ax.set_ylabel("perda")
-ax.plot(
-    range(len(C_pde_loss_it.cpu().numpy())),
-    C_pde_loss_it.cpu().numpy(),
-    label="PDE loss",
-)
-ax.plot(
-    range(len(C_data_loss_it.cpu().numpy())),
-    C_data_loss_it.cpu().numpy(),
-    label="Data loss",
-)
-ax.plot(
-    range(len(C_initial_loss_it.cpu().numpy())),
-    C_initial_loss_it.cpu().numpy(),
-    label="Initial loss",
-)
-ax.grid()
-ax.legend()
-
-plt.savefig("learning_curves/" + pinn_file + ".png")
 model_cpu = model.to("cpu")
 
 speed_up = []
 
+mesh = torch.cat([t, lambd_nb], dim=1).to("cpu")
+
 for i in range(10):
+
     fdm_start = time.time()
 
-    os.system("python3 edo_fdm_model.py " + generateCommand(struct_name, save="False"))
+    for lbm_nb in lmb_list:
+
+        _, _ = fdm(
+            k,
+            phi,
+            ksi,
+            cb,
+            C_nmax,
+            lbm_nb,
+            mi_n,
+            lambd_bn,
+            y_n,
+            t_lower,
+            t_upper,
+            plot=False,
+        )
 
     fdm_end = time.time()
 
     pinn_start = time.time()
 
     with torch.no_grad():
-        Cl_pinn, Cp_pinn = model_cpu(t_cpu).split(1, dim=1)
+        Cl_pinn, Cp_pinn = model_cpu(mesh).split(1, dim=1)
 
     pinn_end = time.time()
 
@@ -328,7 +382,6 @@ for i in range(10):
     pinn_time = pinn_end - pinn_start
 
     speed_up.append(fdm_time / pinn_time)
-
 
 mean_speed_up = np.mean(speed_up)
 std_speed_up = np.std(speed_up)
@@ -356,9 +409,10 @@ output = {
     "Cp_pinn": Cp_pinn,
 }
 
-# print("Erro absoluto médio",rmse)
-# print("Erro absoluto máximo",max_ae)
-# print("Speed Up: {} +/-{}".format(mean_speed_up,std_speed_up))
+print("Erro absoluto médio",rmse)
+print("Erro absoluto máximo",max_ae)
+print("Speed Up: {} +/-{}".format(mean_speed_up,std_speed_up))
+print("="*20+"\n")
 
 with open("edo_pinn_sim/" + pinn_file + ".pkl", "wb") as f:
     pk.dump(output, f)
