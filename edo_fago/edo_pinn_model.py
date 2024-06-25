@@ -261,6 +261,11 @@ for i, lbm_nb in enumerate(lmb_list):
         Cp_old = np.vstack((Cp_old.copy(), Cp_new))
         Cl_old = np.vstack((Cl_old.copy(), Cl_new))
 
+with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
+    pk.dump(Cp_old, f)
+
+with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
+    pk.dump(Cl_old, f)
 
 tt, ll = np.meshgrid(t_np, lmb_list)
 
