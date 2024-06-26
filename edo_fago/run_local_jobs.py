@@ -5,8 +5,8 @@ import numpy as np
 
 sim_list = glob.glob("edo_pinn_sim/*")
 
-file = "k--0.001__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
-n_hd_layers = [1, 2]
+file = "k--0.01__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
+n_hd_layers = [1]#, 2]
 n_neurons = [2**2, 2**3, 2**4]
 activation_func = [
     "LeakyReLU",
@@ -17,7 +17,7 @@ activation_func = [
     "SiLU",
 ]
 
-batch_size = [(10000, 500), (5000, 1000)]
+batch_size = [(100000, 700), (50000, 1400)]
 
 possible_layers = list(product(activation_func, n_neurons))
 
@@ -49,7 +49,7 @@ for n_l in n_hd_layers:
 
                 os.system(
                     (
-                        "python3 edo_pinn_model.py "
+                        "time python3 edo_pinn_model.py "
                         + "-f "
                         + file
                         + " -n "
