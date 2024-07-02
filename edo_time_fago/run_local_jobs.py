@@ -6,8 +6,9 @@ import numpy as np
 sim_list = glob.glob("edo_pinn_sim/*")
 
 file = "k--0.01__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
-n_hd_layers = [1]#, 2]
-n_neurons = [2**2, 2**3, 2**4]
+# n_hd_layers = [1, 2, 3]
+n_hd_layers = [2, 3]
+n_neurons = [2**2, 2**3, 2**4, 2**5]
 activation_func = [
     "LeakyReLU",
     "Sigmoid",
@@ -42,7 +43,6 @@ for n_l in n_hd_layers:
             ) + ".pkl"
 
             if pinn_name not in sim_list:
-
                 print("=" * 20)
                 print(pinn_name)
                 print("\n")
@@ -60,6 +60,5 @@ for n_l in n_hd_layers:
                         + arch_str
                     )
                 )
-                
 
             count += 1

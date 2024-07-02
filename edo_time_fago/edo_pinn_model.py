@@ -386,15 +386,19 @@ std_speed_up = np.std(speed_up)
 
 rmse = np.mean(
     [
-        ((Cl_p - Cl_f) ** 2 + (Cp_p - Cp_f) ** 2) ** 0.5
-        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl_old, Cp_old)
+        ((Cl_p[0] - Cl_f) ** 2 + (Cp_p[0] - Cp_f) ** 2) ** 0.5
+        for Cl_p, Cp_p, Cl_f, Cp_f in zip(
+            Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
+        )
     ]
 )
 
 max_ae = np.max(
     [
-        [((Cl_p - Cl_f) ** 2) ** 0.5, ((Cp_p - Cp_f) ** 2) ** 0.5]
-        for Cl_p, Cp_p, Cl_f, Cp_f in zip(Cl_pinn, Cp_pinn, Cl_old, Cp_old)
+        [((Cl_p[0] - Cl_f) ** 2) ** 0.5, ((Cp_p[0] - Cp_f) ** 2) ** 0.5]
+        for Cl_p, Cp_p, Cl_f, Cp_f in zip(
+            Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
+        )
     ]
 )
 
