@@ -22,6 +22,7 @@ activation_dict = {
     "GLU": nn.GLU,
 }
 
+
 def generate_model(arch_str):
     hidden_layers = arch_str.split("__")
 
@@ -56,7 +57,9 @@ def generate_model(arch_str):
     return nn.Sequential(*modules)
 
 
-def train_data(n_epochs, batch_size, decay_rate, model,lambd_nb,device,data_input,t):
+def train_data(
+    n_epochs, batch_size, decay_rate, model, lambd_nb, device, data_input, t
+):
     loss_fn = nn.MSELoss()  # binary cross entropy
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
