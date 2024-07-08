@@ -11,7 +11,19 @@ def fn(Cb, Cn, Cn_max, y_n, lambd_bn, mi_n):
 
 
 def fdm(
-    k, phi, ksi, cb, Cn_max, lambd_nb, mi_n, lambd_bn, y_n, t_lower, t_upper, initial,plot=False
+    k,
+    phi,
+    ksi,
+    cb,
+    Cn_max,
+    lambd_nb,
+    mi_n,
+    lambd_bn,
+    y_n,
+    t_lower,
+    t_upper,
+    initial,
+    plot=False,
 ):
     # Computing fdm model
 
