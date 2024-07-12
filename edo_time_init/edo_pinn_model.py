@@ -212,6 +212,7 @@ lambd_bn = param_dict["lambd_bn"]
 y_n = param_dict["y_n"]
 t_lower = param_dict["t_lower"]
 t_upper = param_dict["t_upper"]
+initial = 0.5
 
 pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
 
@@ -249,7 +250,7 @@ for i, initial in enumerate(initial_list):
             t_lower,
             t_upper,
             initial,
-            save=True,
+            plot=False,
         )
 
     else:
@@ -266,7 +267,7 @@ for i, initial in enumerate(initial_list):
             t_lower,
             t_upper,
             initial,
-            save=True,
+            plot=False,
         )
 
         Cp_old = np.vstack((Cp_old.copy(), Cp_new))
@@ -295,6 +296,7 @@ if torch.cuda.is_available():
         .to(device)
     )
     data_input = torch.tensor(data_input_np, dtype=torch.float32).to(device)
+    model = model.to(device)
 
 else:
     device = torch.device("cpu")
@@ -321,7 +323,7 @@ C_initial = initial_condition(initial).to(device)
 
 for epoch in range(n_epochs):
     for i in range(0, len(t), batch_size):
-        t_initial = torch.zeros_like(t[i : i + batch_size])
+        t_initial = torch.zeros_like(t[i : i + batch_size]).to(device)
 
         mesh_ini = torch.cat([t_initial, initial[i : i + batch_size]], dim=1)
         C_initial_pred = model(mesh_ini)
@@ -371,7 +373,7 @@ for epoch in range(n_epochs):
     C_data_loss_it[epoch] = loss_data.item()
 
     if (epoch % 100) == 0:
-        print(f"Finished epoch {epoch+1}, latest loss {loss}")
+        print(f"Finished epoch {epoch}, latest loss {loss}")
 
 with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
     pk.dump(C_pde_loss_it.cpu().numpy(), f)
