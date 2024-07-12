@@ -73,28 +73,36 @@ def parseParameters(name):
     return var_dict
 
 
-def initial_condition(t):
-    Cl = torch.zeros_like(t)
-    Cp = torch.zeros_like(t) + 0.2
-    return torch.cat([Cl, Cp], dim=1)
+def normalize_torch(dataset):
+    with torch.no_grad():
+        dt_min = torch.min(dataset,0).values
+        dt_max = torch.max(dataset,0).values
+        normalized = (dataset- dt_min)/(dt_max-dt_min)
+    
+    return normalized.requires_grad_(True), dt_min, dt_max
 
+def normalize_data_input(data_input,steps):
+    with torch.no_grad():
+        dataset = data_input.reshape(steps,steps,2)
+        normalized = torch.zeros_like(dataset)
+        for i in range(len(dataset)):
+            dt_min = torch.min(dataset[i],0).values
+            dt_max = torch.max(dataset[i],0).values
+            normalized[i] = (dataset[i]- dt_min)/(dt_max-dt_min)
+    
+    return normalized.reshape((steps)*(steps),2)
 
-def pde(t, lambd_nb, model):
-    mesh = torch.cat([t, lambd_nb], dim=1)
+def rescale(dataset,dt_min,dt_max):
+    return (dt_max-dt_min)*dataset + dt_min
+
+def initial_condition(initial):
+    Cl = torch.zeros_like(initial)
+    return torch.cat([Cl, initial], dim=1)
+
+def pde(t, initial,model):
+    mesh = torch.cat([t, initial], dim=1)
 
     Cl, Cp = model(mesh).split(1, dim=1)
-
-    # Calculando Cp
-
-    dCp_dt = torch.autograd.grad(
-        Cp,
-        t,
-        grad_outputs=torch.ones_like(Cp),
-        create_graph=True,
-        retain_graph=True,
-    )[0]
-
-    Cp_eq = (cb - lambd_nb * Cl) * Cp * phi - dCp_dt
 
     # Calculando Cl
 
@@ -106,15 +114,18 @@ def pde(t, lambd_nb, model):
         retain_graph=True,
     )[0]
 
-    Cl_eq = (y_n * Cp * (C_nmax - 1) - (lambd_bn * Cp + mi_n)) * Cl * phi - dCl_dt
+    # Calculando Cp
+    
+    dCp_dt = torch.autograd.grad(
+        Cp,
+        t,
+        grad_outputs=torch.ones_like(Cp),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
 
-    del dCl_dt
-    del dCp_dt
 
-    torch.cuda.empty_cache()
-
-    return torch.cat([Cl_eq, Cp_eq], dim=1)
-
+    return torch.cat([dCl_dt, dCp_dt], dim=1)
 
 # Parsing model parameters
 
@@ -206,10 +217,13 @@ pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
 
 size_t = int(((t_upper - t_lower) / (k)))
 
-lmb_var = 0.4
+initial_var = 0.2
 
-lmb_list = np.linspace(
-    1.8 * (1 - lmb_var), 1.8 * (1 + lmb_var), num=size_t + 1, endpoint=True
+initial_list = np.linspace(
+    initial * (1 - initial_var),
+    initial * (1 + initial_var),
+    num=size_t + 1,
+    endpoint=True,
 )
 
 print(
@@ -220,7 +234,7 @@ print(
 
 t_np = np.linspace(t_lower, t_upper, num=size_t + 1, endpoint=True)
 
-for i, lbm_nb in enumerate(lmb_list):
+for i, initial in enumerate(initial_list):
     if i == 0:
         Cp_old, Cl_old = fdm(
             k,
@@ -228,13 +242,14 @@ for i, lbm_nb in enumerate(lmb_list):
             ksi,
             cb,
             C_nmax,
-            lbm_nb,
+            lambd_nb,
             mi_n,
             lambd_bn,
             y_n,
             t_lower,
             t_upper,
-            plot=False,
+            initial,
+            save=True,
         )
 
     else:
@@ -244,13 +259,14 @@ for i, lbm_nb in enumerate(lmb_list):
             ksi,
             cb,
             C_nmax,
-            lbm_nb,
+            lambd_nb,
             mi_n,
             lambd_bn,
             y_n,
             t_lower,
             t_upper,
-            plot=False,
+            initial,
+            save=True,
         )
 
         Cp_old = np.vstack((Cp_old.copy(), Cp_new))
@@ -262,7 +278,7 @@ with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
 with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
     pk.dump(Cl_old, f)
 
-tt, ll = np.meshgrid(t_np, lmb_list)
+tt, ii = np.meshgrid(t_np, initial_list)
 
 data_input_np = np.array([Cl_old.flatten(), Cp_old.flatten()]).T
 
@@ -273,64 +289,89 @@ if torch.cuda.is_available():
         .reshape(-1, 1)
         .to(device)
     )
-    lambd_nb = (
-        torch.tensor(ll, dtype=torch.float32, requires_grad=True)
+    initial = (
+        torch.tensor(ii, dtype=torch.float32, requires_grad=True)
         .reshape(-1, 1)
         .to(device)
     )
     data_input = torch.tensor(data_input_np, dtype=torch.float32).to(device)
-    model = model.to(device)
 
 else:
     device = torch.device("cpu")
     t = torch.tensor(tt, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
-    lambd_nb = torch.tensor(ll, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
+    initial = torch.tensor(ii, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
     data_input = torch.tensor(data_input_np, dtype=torch.float32)
 
 print(device)
 
+norm_weights = None
+
+dt_min, dt_max = norm_weights if norm_weights else (0, 1)
+
 loss_fn = nn.MSELoss()  # binary cross entropy
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+lr_scheduler = optim.lr_scheduler.ExponentialLR(
+    optimizer=optimizer, gamma=0.999
+)
 
 C_pde_loss_it = torch.zeros(n_epochs).to(device)
 C_data_loss_it = torch.zeros(n_epochs).to(device)
 C_initial_loss_it = torch.zeros(n_epochs).to(device)
-C_initial = initial_condition(t).to(device)
+C_initial = initial_condition(initial).to(device)
 
 for epoch in range(n_epochs):
     for i in range(0, len(t), batch_size):
-        t_initial = torch.zeros_like(t[i : i + batch_size]).to(device)
+        t_initial = torch.zeros_like(t[i : i + batch_size])
 
-        mesh = torch.cat([t_initial, lambd_nb[i : i + batch_size]], dim=1)
-        C_initial_pred = model(mesh)
+        mesh_ini = torch.cat([t_initial, initial[i : i + batch_size]], dim=1)
+        C_initial_pred = model(mesh_ini)
 
         loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
 
-        mesh = torch.cat([t[i : i + batch_size], lambd_nb[i : i + batch_size]], dim=1)
-        C_pred = model(mesh)
-
-        loss_pde = loss_fn(
-            pde(t[i : i + batch_size], lambd_nb[i : i + batch_size], model),
-            torch.cat([t_initial, t_initial], dim=1),
+        mesh = torch.cat(
+            [t[i : i + batch_size], initial[i : i + batch_size]], dim=1
         )
 
-        loss_data = loss_fn(C_pred, data_input[i : i + batch_size])
+        Cl, Cp = model(mesh).split(1, dim=1)
 
-        loss = 10 * loss_initial + loss_pde + 10 * loss_data
-        # loss = loss_initial + loss_data
+        Cl_eq = (y_n * Cp * (C_nmax - Cl) - lambd_bn * Cp * Cl - mi_n * Cl) / (
+            phi * (dt_max - dt_min)
+        )
+        Cp_eq = (cb * Cp - lambd_nb * Cl * Cp) / (phi * (dt_max - dt_min))
+
+        loss_pde = loss_fn(
+            pde(
+                t[i : i + batch_size],
+                initial[i : i + batch_size],
+                model,
+            ),
+            torch.cat([Cl_eq, Cp_eq], dim=1),
+        )
+
+        loss_data = loss_fn(
+            torch.cat([Cl, Cp], dim=1), data_input[i : i + batch_size]
+        )
+
+        loss = 80 * loss_initial + loss_pde + 10 * loss_data
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        # lr_scheduler.step()
+        lr_scheduler.step()
+
+        # print("initial",initial)
+        # print("C_initial",C_initial)
+        # print("mesh_ini",mesh_ini)
+        # print("C_initial_pred",C_initial_pred)
+        # print("C_initial[i : i + batch_size]",C_initial[i : i + batch_size])
+        # print("*"*30)
 
     C_pde_loss_it[epoch] = loss_pde.item()
     C_initial_loss_it[epoch] = loss_initial.item()
     C_data_loss_it[epoch] = loss_data.item()
 
-    # if epoch % 100 == 0:
-    #     print(f"Finished epoch {epoch}, latest loss {loss}")
-
+    if (epoch % 100) == 0:
+        print(f"Finished epoch {epoch+1}, latest loss {loss}")
 
 with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
     pk.dump(C_pde_loss_it.cpu().numpy(), f)
@@ -345,25 +386,26 @@ model_cpu = model.to("cpu")
 
 speed_up = []
 
-mesh = torch.cat([t, lambd_nb], dim=1).to("cpu")
+mesh = torch.cat([t, initial], dim=1).to("cpu")
 
 for i in range(10):
     fdm_start = time.time()
 
-    for lbm_nb in lmb_list:
+    for ini in initial_list:
+
         _, _ = fdm(
             k,
             phi,
             ksi,
             cb,
             C_nmax,
-            lbm_nb,
+            lambd_nb,
             mi_n,
             lambd_bn,
             y_n,
             t_lower,
             t_upper,
-            plot=False,
+            ini,
         )
 
     fdm_end = time.time()

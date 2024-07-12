@@ -44,7 +44,7 @@ activation_func = [
     "SiLU",
 ]
 
-batch_size = [(10000, 500), (5000, 1000)]
+batch_size = [(1000, 300), (500, 600)]
 
 possible_layers = list(product(activation_func, n_neurons))
 
