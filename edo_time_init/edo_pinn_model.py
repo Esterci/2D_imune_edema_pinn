@@ -75,31 +75,35 @@ def parseParameters(name):
 
 def normalize_torch(dataset):
     with torch.no_grad():
-        dt_min = torch.min(dataset,0).values
-        dt_max = torch.max(dataset,0).values
-        normalized = (dataset- dt_min)/(dt_max-dt_min)
-    
+        dt_min = torch.min(dataset, 0).values
+        dt_max = torch.max(dataset, 0).values
+        normalized = (dataset - dt_min) / (dt_max - dt_min)
+
     return normalized.requires_grad_(True), dt_min, dt_max
 
-def normalize_data_input(data_input,steps):
+
+def normalize_data_input(data_input, steps):
     with torch.no_grad():
-        dataset = data_input.reshape(steps,steps,2)
+        dataset = data_input.reshape(steps, steps, 2)
         normalized = torch.zeros_like(dataset)
         for i in range(len(dataset)):
-            dt_min = torch.min(dataset[i],0).values
-            dt_max = torch.max(dataset[i],0).values
-            normalized[i] = (dataset[i]- dt_min)/(dt_max-dt_min)
-    
-    return normalized.reshape((steps)*(steps),2)
+            dt_min = torch.min(dataset[i], 0).values
+            dt_max = torch.max(dataset[i], 0).values
+            normalized[i] = (dataset[i] - dt_min) / (dt_max - dt_min)
 
-def rescale(dataset,dt_min,dt_max):
-    return (dt_max-dt_min)*dataset + dt_min
+    return normalized.reshape((steps) * (steps), 2)
+
+
+def rescale(dataset, dt_min, dt_max):
+    return (dt_max - dt_min) * dataset + dt_min
+
 
 def initial_condition(initial):
     Cl = torch.zeros_like(initial)
     return torch.cat([Cl, initial], dim=1)
 
-def pde(t, initial,model):
+
+def pde(t, initial, model):
     mesh = torch.cat([t, initial], dim=1)
 
     Cl, Cp = model(mesh).split(1, dim=1)
@@ -115,7 +119,7 @@ def pde(t, initial,model):
     )[0]
 
     # Calculando Cp
-    
+
     dCp_dt = torch.autograd.grad(
         Cp,
         t,
@@ -124,8 +128,8 @@ def pde(t, initial,model):
         retain_graph=True,
     )[0]
 
-
     return torch.cat([dCl_dt, dCp_dt], dim=1)
+
 
 # Parsing model parameters
 
@@ -312,9 +316,7 @@ dt_min, dt_max = norm_weights if norm_weights else (0, 1)
 
 loss_fn = nn.MSELoss()  # binary cross entropy
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-lr_scheduler = optim.lr_scheduler.ExponentialLR(
-    optimizer=optimizer, gamma=0.999
-)
+lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.999)
 
 C_pde_loss_it = torch.zeros(n_epochs).to(device)
 C_data_loss_it = torch.zeros(n_epochs).to(device)
@@ -330,9 +332,7 @@ for epoch in range(n_epochs):
 
         loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
 
-        mesh = torch.cat(
-            [t[i : i + batch_size], initial[i : i + batch_size]], dim=1
-        )
+        mesh = torch.cat([t[i : i + batch_size], initial[i : i + batch_size]], dim=1)
 
         Cl, Cp = model(mesh).split(1, dim=1)
 
@@ -350,9 +350,7 @@ for epoch in range(n_epochs):
             torch.cat([Cl_eq, Cp_eq], dim=1),
         )
 
-        loss_data = loss_fn(
-            torch.cat([Cl, Cp], dim=1), data_input[i : i + batch_size]
-        )
+        loss_data = loss_fn(torch.cat([Cl, Cp], dim=1), data_input[i : i + batch_size])
 
         loss = 80 * loss_initial + loss_pde + 10 * loss_data
 
