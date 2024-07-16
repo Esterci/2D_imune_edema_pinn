@@ -97,7 +97,42 @@ def normalize_data_input(data_input, steps):
 def rescale(dataset, dt_min, dt_max):
     return (dt_max - dt_min) * dataset + dt_min
 
+def shuffle_data(x, y, z):
+    Data_num = np.arange(x.shape[0])
+    np.random.shuffle(Data_num)
 
+    return x[Data_num], y[Data_num], z[Data_num]
+
+def train_test_split(x, y, z, test_size=0.5, shuffle=True):
+    with torch.no_grad():
+        if shuffle:
+            x, y, z = shuffle_data(x, y, z)
+        if test_size < 1:
+            train_ratio = len(x) - int(len(x) * test_size)
+            x_train, x_test = x[:train_ratio], x[train_ratio:]
+            y_train, y_test = y[:train_ratio], y[train_ratio:]
+            z_train, z_test = z[:train_ratio], z[train_ratio:]
+            return (
+                x_train.requires_grad_(True),
+                x_test.requires_grad_(True),
+                y_train.requires_grad_(True),
+                y_test.requires_grad_(True),
+                z_train.requires_grad_(True),
+                z_test.requires_grad_(True),
+            )
+        elif test_size in range(1, len(x)):
+            x_train, x_test = x[test_size:], x[:test_size]
+            y_train, y_test = y[test_size:], y[:test_size]
+            z_train, z_test = z[test_size:], z[:test_size]
+            return (
+                x_train.requires_grad_(True),
+                x_test.requires_grad_(True),
+                y_train.requires_grad_(True),
+                y_test.requires_grad_(True),
+                z_train.requires_grad_(True),
+                z_test.requires_grad_(True),
+            )
+        
 def initial_condition(initial):
     Cl = torch.zeros_like(initial)
     return torch.cat([Cl, initial], dim=1)
@@ -191,6 +226,17 @@ parser.add_argument(
     help="",
 )
 
+parser.add_argument(
+    "-v",
+    "--var",
+    type=float,
+    action="store",
+    dest="var",
+    required=False,
+    default="0",
+    help="",
+)
+
 args = parser.parse_args()
 
 args_dict = vars(args)
@@ -200,6 +246,7 @@ n_epochs = args_dict["n_epochs"]
 batch_size = args_dict["batch_size"]
 arch_str = args_dict["arch_str"]
 gpu = args_dict["gpu"]
+initial_var = args_dict["var"]
 
 model = generate_model(arch_str)
 
@@ -221,8 +268,6 @@ initial = 0.5
 pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
 
 size_t = int(((t_upper - t_lower) / (k)))
-
-initial_var = 0.2
 
 initial_list = np.linspace(
     initial * (1 - initial_var),
@@ -311,67 +356,93 @@ else:
 print(device)
 
 norm_weights = None
+validation = 0.1
 
 dt_min, dt_max = norm_weights if norm_weights else (0, 1)
 
 loss_fn = nn.MSELoss()  # binary cross entropy
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.999)
+lr_scheduler = optim.lr_scheduler.ExponentialLR(
+    optimizer=optimizer, gamma=0.999
+)
+
+if validation:
+    train_data, test_data, train_t, test_t, train_initial, test_initial = (
+        train_test_split(data_input, t, initial, test_size=validation)
+    )
+    train_data_input = torch.cat([train_t, train_initial], dim=1)
+    test_data_input = torch.cat([test_t, test_initial], dim=1)
+
+else:
+    train_data = data_input
+    test_data = None
+    train_data_input = torch.cat([t, initial], dim=1)
+    test_data_input = None
+    train_t = t
+    test_t = None
+    train_initial = initial
+    test_initial = None
 
 C_pde_loss_it = torch.zeros(n_epochs).to(device)
 C_data_loss_it = torch.zeros(n_epochs).to(device)
 C_initial_loss_it = torch.zeros(n_epochs).to(device)
-C_initial = initial_condition(initial).to(device)
+C_initial = initial_condition(train_initial).to(device)
+val_loss_it = torch.zeros(n_epochs).to(device)
 
 for epoch in range(n_epochs):
-    for i in range(0, len(t), batch_size):
-        t_initial = torch.zeros_like(t[i : i + batch_size]).to(device)
+    for i in range(0, len(train_t), batch_size):
+        t_initial = torch.zeros_like(train_t[i : i + batch_size])
 
-        mesh_ini = torch.cat([t_initial, initial[i : i + batch_size]], dim=1)
+        mesh_ini = torch.cat([t_initial, train_initial[i : i + batch_size]], dim=1)
         C_initial_pred = model(mesh_ini)
 
         loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
 
-        mesh = torch.cat([t[i : i + batch_size], initial[i : i + batch_size]], dim=1)
-
-        Cl, Cp = model(mesh).split(1, dim=1)
+        Cl, Cp = model(train_data_input[i : i + batch_size]).split(1, dim=1)
 
         Cl_eq = (y_n * Cp * (C_nmax - Cl) - lambd_bn * Cp * Cl - mi_n * Cl) / (
             phi * (dt_max - dt_min)
         )
         Cp_eq = (cb * Cp - lambd_nb * Cl * Cp) / (phi * (dt_max - dt_min))
 
+        pde_pred = torch.cat([Cl_eq, Cp_eq], dim=1)
+
         loss_pde = loss_fn(
             pde(
-                t[i : i + batch_size],
-                initial[i : i + batch_size],
+                train_t[i : i + batch_size],
+                train_initial[i : i + batch_size],
                 model,
             ),
-            torch.cat([Cl_eq, Cp_eq], dim=1),
+            pde_pred,
         )
 
-        loss_data = loss_fn(torch.cat([Cl, Cp], dim=1), data_input[i : i + batch_size])
+        C_pred = torch.cat([Cl, Cp], dim=1)
 
-        loss = 80 * loss_initial + loss_pde + 10 * loss_data
+        loss_data = loss_fn(train_data[i : i + batch_size], C_pred)
+
+        loss = 15 * loss_initial + loss_pde + 40 * loss_data
+
+        if validation:
+            with torch.no_grad():
+                val_loss = loss_fn(test_data, model(test_data_input))
+        # val_loss = torch.tensor([0])
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         lr_scheduler.step()
 
-        # print("initial",initial)
-        # print("C_initial",C_initial)
-        # print("mesh_ini",mesh_ini)
-        # print("C_initial_pred",C_initial_pred)
-        # print("C_initial[i : i + batch_size]",C_initial[i : i + batch_size])
-        # print("*"*30)
-
     C_pde_loss_it[epoch] = loss_pde.item()
     C_initial_loss_it[epoch] = loss_initial.item()
     C_data_loss_it[epoch] = loss_data.item()
+    val_loss_it[epoch] = val_loss.item() if validation else 0
 
     if (epoch % 100) == 0:
-        print(f"Finished epoch {epoch}, latest loss {loss}")
+        print(
+            f"Finished epoch {epoch+1}, latest loss {loss}, validation loss {val_loss.item()}"
+            if validation
+            else f"Finished epoch {epoch+1}, latest loss {loss}"
+        )
 
 with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
     pk.dump(C_pde_loss_it.cpu().numpy(), f)
@@ -381,6 +452,9 @@ with open("learning_curves/C_data_loss_it__" + pinn_file + ".pkl", "wb") as f:
 
 with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
     pk.dump(C_initial_loss_it.cpu().numpy(), f)
+
+with open("learning_curves/val_loss_it__" + pinn_file + ".pkl", "wb") as f:
+    pk.dump(val_loss_it.cpu().numpy(), f)
 
 model_cpu = model.to("cpu")
 
@@ -392,7 +466,6 @@ for i in range(10):
     fdm_start = time.time()
 
     for ini in initial_list:
-
         _, _ = fdm(
             k,
             phi,

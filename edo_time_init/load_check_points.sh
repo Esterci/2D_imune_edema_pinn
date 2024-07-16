@@ -1,5 +1,5 @@
 
-d=1719945754
+d=1720806913
 
 #################
 
@@ -16,6 +16,10 @@ unzip -o check_points/output_files_$d.zip
 #################
 
 unzip -o check_points/edo_pinn_sim_$d.zip
+
+#################
+
+unzip -o check_points/edo_fdm_sim_$d.zip
 
 #################
 
