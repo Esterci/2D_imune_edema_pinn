@@ -1,0 +1,15 @@
+#!/bin/bash
+#----------------------------------------------------------
+# Job name
+#PBS -N pinn_0
+#PBS -e error_files/pinn_0.e
+#PBS -o output_files/pinn_0.o
+# Run time (hh:mm:ss) - 3 hrs
+#PBS -l walltime=3:00:00
+#----------------------------------------------------------
+#PBS -l nodes=compute-1-1:ppn=1
+# Change to submission directory
+cd $PBS_O_WORKDIR
+cat $PBS_NODEFILE
+# Launch Thiago-based executable
+nvidia-smi
