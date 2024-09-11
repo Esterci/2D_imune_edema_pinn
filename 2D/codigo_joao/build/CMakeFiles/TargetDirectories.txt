@@ -1,0 +1,3 @@
+/home/joao-victor-oliveira/Documents/Repositories/TCC/Modelagem-Mec-nica-da-Forma-o-de-Edemas/versao_2D_em_c/build/CMakeFiles/rebuild_cache.dir
+/home/joao-victor-oliveira/Documents/Repositories/TCC/Modelagem-Mec-nica-da-Forma-o-de-Edemas/versao_2D_em_c/build/CMakeFiles/edit_cache.dir
+/home/joao-victor-oliveira/Documents/Repositories/TCC/Modelagem-Mec-nica-da-Forma-o-de-Edemas/versao_2D_em_c/build/CMakeFiles/mmfe.dir
