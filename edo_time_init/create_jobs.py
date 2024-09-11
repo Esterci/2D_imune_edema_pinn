@@ -22,29 +22,27 @@ def add_line(line, out):
 
 
 v_gpu = [
-    "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
-    "MIG-0dd7cc8d-bef1-51bb-8790-19fb03bacf66",
-    "MIG-67a1ee11-1ab0-511a-ac0f-c81bdbd05f7e",
+    "MIG-d14ab5f9-ca27-5f8a-bfe1-57e541d0328f",
+    "MIG-03c65507-2388-56b3-a2d9-b30c8b5723ee",
     "MIG-f184e443-af81-5f32-bad0-527cd20eb031",
     "MIG-8721230f-e004-50bd-b720-915f56b60dc6",
     "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
     "MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
     "MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
+    "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
 ]
 
-file = "k--0.0001__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
-n_hd_layers = [1, 2]
-n_neurons = [2**2, 2**3, 2**4, 2**5]
+file = "k--0.1__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
+n_hd_layers = [3,4]
+n_neurons = [2**3, 2**4, 2**5]
 activation_func = [
-    "LeakyReLU",
-    "Sigmoid",
     "Elu",
     "Tanh",
     "ReLU",
     "SiLU",
 ]
 
-batch_size = [(10000, 500), (5000, 1000)]
+batch_size = [(1000, 300)]
 
 possible_layers = list(product(activation_func, n_neurons))
 
@@ -125,7 +123,11 @@ for n_l in n_hd_layers:
                 + " -b "
                 + str(int(batch[0]))
                 + " -a "
-                + arch_str,
+                + arch_str
+                + " -g "
+                + str(v_gpu[count // 20 % len(v_gpu)])
+                + " -v "
+                + str(0.2),
                 "jobs/pinn_" + str(count // 20) + ".job",
             )
 

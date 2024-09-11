@@ -73,28 +73,75 @@ def parseParameters(name):
     return var_dict
 
 
-def initial_condition(t):
-    Cl = torch.zeros_like(t)
-    Cp = torch.zeros_like(t) + 0.2
-    return torch.cat([Cl, Cp], dim=1)
+def normalize_torch(dataset):
+    with torch.no_grad():
+        dt_min = torch.min(dataset, 0).values
+        dt_max = torch.max(dataset, 0).values
+        normalized = (dataset - dt_min) / (dt_max - dt_min)
+
+    return normalized.requires_grad_(True), dt_min, dt_max
 
 
-def pde(t, lambd_nb, model):
-    mesh = torch.cat([t, lambd_nb], dim=1)
+def normalize_data_input(data_input, steps):
+    with torch.no_grad():
+        dataset = data_input.reshape(steps, steps, 2)
+        normalized = torch.zeros_like(dataset)
+        for i in range(len(dataset)):
+            dt_min = torch.min(dataset[i], 0).values
+            dt_max = torch.max(dataset[i], 0).values
+            normalized[i] = (dataset[i] - dt_min) / (dt_max - dt_min)
+
+    return normalized.reshape((steps) * (steps), 2)
+
+
+def rescale(dataset, dt_min, dt_max):
+    return (dt_max - dt_min) * dataset + dt_min
+
+def shuffle_data(x, y, z):
+    Data_num = np.arange(x.shape[0])
+    np.random.shuffle(Data_num)
+
+    return x[Data_num], y[Data_num], z[Data_num]
+
+def train_test_split(x, y, z, test_size=0.5, shuffle=True):
+    with torch.no_grad():
+        if shuffle:
+            x, y, z = shuffle_data(x, y, z)
+        if test_size < 1:
+            train_ratio = len(x) - int(len(x) * test_size)
+            x_train, x_test = x[:train_ratio], x[train_ratio:]
+            y_train, y_test = y[:train_ratio], y[train_ratio:]
+            z_train, z_test = z[:train_ratio], z[train_ratio:]
+            return (
+                x_train.requires_grad_(True),
+                x_test.requires_grad_(True),
+                y_train.requires_grad_(True),
+                y_test.requires_grad_(True),
+                z_train.requires_grad_(True),
+                z_test.requires_grad_(True),
+            )
+        elif test_size in range(1, len(x)):
+            x_train, x_test = x[test_size:], x[:test_size]
+            y_train, y_test = y[test_size:], y[:test_size]
+            z_train, z_test = z[test_size:], z[:test_size]
+            return (
+                x_train.requires_grad_(True),
+                x_test.requires_grad_(True),
+                y_train.requires_grad_(True),
+                y_test.requires_grad_(True),
+                z_train.requires_grad_(True),
+                z_test.requires_grad_(True),
+            )
+        
+def initial_condition(initial):
+    Cl = torch.zeros_like(initial)
+    return torch.cat([Cl, initial], dim=1)
+
+
+def pde(t, initial, model):
+    mesh = torch.cat([t, initial], dim=1)
 
     Cl, Cp = model(mesh).split(1, dim=1)
-
-    # Calculando Cp
-
-    dCp_dt = torch.autograd.grad(
-        Cp,
-        t,
-        grad_outputs=torch.ones_like(Cp),
-        create_graph=True,
-        retain_graph=True,
-    )[0]
-
-    Cp_eq = (cb - lambd_nb * Cl) * Cp * phi - dCp_dt
 
     # Calculando Cl
 
@@ -106,14 +153,17 @@ def pde(t, lambd_nb, model):
         retain_graph=True,
     )[0]
 
-    Cl_eq = (y_n * Cp * (C_nmax - 1) - (lambd_bn * Cp + mi_n)) * Cl * phi - dCl_dt
+    # Calculando Cp
 
-    del dCl_dt
-    del dCp_dt
+    dCp_dt = torch.autograd.grad(
+        Cp,
+        t,
+        grad_outputs=torch.ones_like(Cp),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
 
-    torch.cuda.empty_cache()
-
-    return torch.cat([Cl_eq, Cp_eq], dim=1)
+    return torch.cat([dCl_dt, dCp_dt], dim=1)
 
 
 # Parsing model parameters
@@ -176,6 +226,17 @@ parser.add_argument(
     help="",
 )
 
+parser.add_argument(
+    "-v",
+    "--var",
+    type=float,
+    action="store",
+    dest="var",
+    required=False,
+    default="0",
+    help="",
+)
+
 args = parser.parse_args()
 
 args_dict = vars(args)
@@ -185,6 +246,7 @@ n_epochs = args_dict["n_epochs"]
 batch_size = args_dict["batch_size"]
 arch_str = args_dict["arch_str"]
 gpu = args_dict["gpu"]
+initial_var = args_dict["var"]
 
 model = generate_model(arch_str)
 
@@ -201,15 +263,17 @@ lambd_bn = param_dict["lambd_bn"]
 y_n = param_dict["y_n"]
 t_lower = param_dict["t_lower"]
 t_upper = param_dict["t_upper"]
+initial = 0.5
 
 pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
 
 size_t = int(((t_upper - t_lower) / (k)))
 
-lmb_var = 0.4
-
-lmb_list = np.linspace(
-    1.8 * (1 - lmb_var), 1.8 * (1 + lmb_var), num=size_t + 1, endpoint=True
+initial_list = np.linspace(
+    initial * (1 - initial_var),
+    initial * (1 + initial_var),
+    num=size_t + 1,
+    endpoint=True,
 )
 
 print(
@@ -220,7 +284,7 @@ print(
 
 t_np = np.linspace(t_lower, t_upper, num=size_t + 1, endpoint=True)
 
-for i, lbm_nb in enumerate(lmb_list):
+for i, initial in enumerate(initial_list):
     if i == 0:
         Cp_old, Cl_old = fdm(
             k,
@@ -228,12 +292,13 @@ for i, lbm_nb in enumerate(lmb_list):
             ksi,
             cb,
             C_nmax,
-            lbm_nb,
+            lambd_nb,
             mi_n,
             lambd_bn,
             y_n,
             t_lower,
             t_upper,
+            initial,
             plot=False,
         )
 
@@ -244,12 +309,13 @@ for i, lbm_nb in enumerate(lmb_list):
             ksi,
             cb,
             C_nmax,
-            lbm_nb,
+            lambd_nb,
             mi_n,
             lambd_bn,
             y_n,
             t_lower,
             t_upper,
+            initial,
             plot=False,
         )
 
@@ -262,7 +328,7 @@ with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
 with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
     pk.dump(Cl_old, f)
 
-tt, ll = np.meshgrid(t_np, lmb_list)
+tt, ii = np.meshgrid(t_np, initial_list)
 
 data_input_np = np.array([Cl_old.flatten(), Cp_old.flatten()]).T
 
@@ -273,8 +339,8 @@ if torch.cuda.is_available():
         .reshape(-1, 1)
         .to(device)
     )
-    lambd_nb = (
-        torch.tensor(ll, dtype=torch.float32, requires_grad=True)
+    initial = (
+        torch.tensor(ii, dtype=torch.float32, requires_grad=True)
         .reshape(-1, 1)
         .to(device)
     )
@@ -284,53 +350,99 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
     t = torch.tensor(tt, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
-    lambd_nb = torch.tensor(ll, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
+    initial = torch.tensor(ii, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
     data_input = torch.tensor(data_input_np, dtype=torch.float32)
 
 print(device)
 
+norm_weights = None
+validation = 0.1
+
+dt_min, dt_max = norm_weights if norm_weights else (0, 1)
+
 loss_fn = nn.MSELoss()  # binary cross entropy
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+lr_scheduler = optim.lr_scheduler.ExponentialLR(
+    optimizer=optimizer, gamma=0.999
+)
+
+if validation:
+    train_data, test_data, train_t, test_t, train_initial, test_initial = (
+        train_test_split(data_input, t, initial, test_size=validation)
+    )
+    train_data_input = torch.cat([train_t, train_initial], dim=1)
+    test_data_input = torch.cat([test_t, test_initial], dim=1)
+
+else:
+    train_data = data_input
+    test_data = None
+    train_data_input = torch.cat([t, initial], dim=1)
+    test_data_input = None
+    train_t = t
+    test_t = None
+    train_initial = initial
+    test_initial = None
 
 C_pde_loss_it = torch.zeros(n_epochs).to(device)
 C_data_loss_it = torch.zeros(n_epochs).to(device)
 C_initial_loss_it = torch.zeros(n_epochs).to(device)
-C_initial = initial_condition(t).to(device)
+C_initial = initial_condition(train_initial).to(device)
+val_loss_it = torch.zeros(n_epochs).to(device)
 
 for epoch in range(n_epochs):
-    for i in range(0, len(t), batch_size):
-        t_initial = torch.zeros_like(t[i : i + batch_size]).to(device)
+    for i in range(0, len(train_t), batch_size):
+        t_initial = torch.zeros_like(train_t[i : i + batch_size])
 
-        mesh = torch.cat([t_initial, lambd_nb[i : i + batch_size]], dim=1)
-        C_initial_pred = model(mesh)
+        mesh_ini = torch.cat([t_initial, train_initial[i : i + batch_size]], dim=1)
+        C_initial_pred = model(mesh_ini)
 
         loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
 
-        mesh = torch.cat([t[i : i + batch_size], lambd_nb[i : i + batch_size]], dim=1)
-        C_pred = model(mesh)
+        Cl, Cp = model(train_data_input[i : i + batch_size]).split(1, dim=1)
+
+        Cl_eq = (y_n * Cp * (C_nmax - Cl) - lambd_bn * Cp * Cl - mi_n * Cl) / (
+            phi * (dt_max - dt_min)
+        )
+        Cp_eq = (cb * Cp - lambd_nb * Cl * Cp) / (phi * (dt_max - dt_min))
+
+        pde_pred = torch.cat([Cl_eq, Cp_eq], dim=1)
 
         loss_pde = loss_fn(
-            pde(t[i : i + batch_size], lambd_nb[i : i + batch_size], model),
-            torch.cat([t_initial, t_initial], dim=1),
+            pde(
+                train_t[i : i + batch_size],
+                train_initial[i : i + batch_size],
+                model,
+            ),
+            pde_pred,
         )
 
-        loss_data = loss_fn(C_pred, data_input[i : i + batch_size])
+        C_pred = torch.cat([Cl, Cp], dim=1)
 
-        loss = 10 * loss_initial + loss_pde + 10 * loss_data
-        # loss = loss_initial + loss_data
+        loss_data = loss_fn(train_data[i : i + batch_size], C_pred)
+
+        loss = 15 * loss_initial + loss_pde + 40 * loss_data
+
+        if validation:
+            with torch.no_grad():
+                val_loss = loss_fn(test_data, model(test_data_input))
+        # val_loss = torch.tensor([0])
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        # lr_scheduler.step()
+        lr_scheduler.step()
 
     C_pde_loss_it[epoch] = loss_pde.item()
     C_initial_loss_it[epoch] = loss_initial.item()
     C_data_loss_it[epoch] = loss_data.item()
+    val_loss_it[epoch] = val_loss.item() if validation else 0
 
-    # if epoch % 100 == 0:
-    #     print(f"Finished epoch {epoch}, latest loss {loss}")
-
+    if (epoch % 100) == 0:
+        print(
+            f"Finished epoch {epoch+1}, latest loss {loss}, validation loss {val_loss.item()}"
+            if validation
+            else f"Finished epoch {epoch+1}, latest loss {loss}"
+        )
 
 with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
     pk.dump(C_pde_loss_it.cpu().numpy(), f)
@@ -341,29 +453,32 @@ with open("learning_curves/C_data_loss_it__" + pinn_file + ".pkl", "wb") as f:
 with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
     pk.dump(C_initial_loss_it.cpu().numpy(), f)
 
+with open("learning_curves/val_loss_it__" + pinn_file + ".pkl", "wb") as f:
+    pk.dump(val_loss_it.cpu().numpy(), f)
+
 model_cpu = model.to("cpu")
 
 speed_up = []
 
-mesh = torch.cat([t, lambd_nb], dim=1).to("cpu")
+mesh = torch.cat([t, initial], dim=1).to("cpu")
 
 for i in range(10):
     fdm_start = time.time()
 
-    for lbm_nb in lmb_list:
+    for ini in initial_list:
         _, _ = fdm(
             k,
             phi,
             ksi,
             cb,
             C_nmax,
-            lbm_nb,
+            lambd_nb,
             mi_n,
             lambd_bn,
             y_n,
             t_lower,
             t_upper,
-            plot=False,
+            ini,
         )
 
     fdm_end = time.time()
