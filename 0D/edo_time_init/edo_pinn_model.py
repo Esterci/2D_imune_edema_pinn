@@ -97,11 +97,13 @@ def normalize_data_input(data_input, steps):
 def rescale(dataset, dt_min, dt_max):
     return (dt_max - dt_min) * dataset + dt_min
 
+
 def shuffle_data(x, y, z):
     Data_num = np.arange(x.shape[0])
     np.random.shuffle(Data_num)
 
     return x[Data_num], y[Data_num], z[Data_num]
+
 
 def train_test_split(x, y, z, test_size=0.5, shuffle=True):
     with torch.no_grad():
@@ -132,7 +134,8 @@ def train_test_split(x, y, z, test_size=0.5, shuffle=True):
                 z_train.requires_grad_(True),
                 z_test.requires_grad_(True),
             )
-        
+
+
 def initial_condition(initial):
     Cl = torch.zeros_like(initial)
     return torch.cat([Cl, initial], dim=1)
@@ -362,9 +365,7 @@ dt_min, dt_max = norm_weights if norm_weights else (0, 1)
 
 loss_fn = nn.MSELoss()  # binary cross entropy
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-lr_scheduler = optim.lr_scheduler.ExponentialLR(
-    optimizer=optimizer, gamma=0.999
-)
+lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.999)
 
 if validation:
     train_data, test_data, train_t, test_t, train_initial, test_initial = (

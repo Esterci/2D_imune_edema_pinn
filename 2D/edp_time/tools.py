@@ -53,11 +53,13 @@ def generate_model(arch_str):
 
     return nn.Sequential(*modules)
 
+
 def shuffle_data(x, y, z):
     Data_num = np.arange(x.shape[0])
     np.random.shuffle(Data_num)
 
     return x[Data_num], y[Data_num], z[Data_num]
+
 
 def train_test_split(x, y, z, test_size=0.5, shuffle=True):
     with torch.no_grad():
@@ -88,7 +90,8 @@ def train_test_split(x, y, z, test_size=0.5, shuffle=True):
                 z_train.requires_grad_(True),
                 z_test.requires_grad_(True),
             )
-        
+
+
 def train_data(
     n_epochs,
     batch_size,
