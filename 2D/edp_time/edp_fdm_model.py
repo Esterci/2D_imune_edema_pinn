@@ -70,8 +70,8 @@ def solve_pde(
     Cn_new = np.zeros((size_x, size_y))
     Cb_new = np.zeros((size_x, size_y))
 
-    Cn_final = np.zeros((size_tt,size_x, size_y))
-    Cb_final = np.zeros((size_tt,size_x, size_y))
+    Cn_final = np.zeros((size_tt, size_x, size_y))
+    Cb_final = np.zeros((size_tt, size_x, size_y))
 
     Cb_new = apply_initial_conditions(Cb_new, size_x)
 
@@ -192,9 +192,9 @@ if __name__ == "__main__":
     y_dom = (0, 1)
     t_dom = (0, 10)
 
-    size_x = int(((x_dom[1] - x_dom[0]) / (h)))
-    size_y = int(((y_dom[1] - y_dom[0]) / (h)))
-    size_tt = int(((t_dom[1] - t_dom[0]) / (k)))
+    size_x = int(((x_dom[1] - x_dom[0]) / (h))) + 1
+    size_y = int(((y_dom[1] - y_dom[0]) / (h))) + 1
+    size_tt = int(((t_dom[1] - t_dom[0]) / (k))) + 1
 
     print("Size x = {:d}, y = {:d} \n ".format(size_x, size_y))
 
@@ -288,11 +288,11 @@ if __name__ == "__main__":
 
     print("struct_name: ", struct_name)
 
-    with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
+    with open("fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
         pk.dump(Cb, f)
 
-    with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
+    with open("fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
         pk.dump(Cn, f)
 
-    with open("edo_fdm_sim/time__" + struct_name + ".pkl", "wb") as f:
+    with open("fdm_sim/time__" + struct_name + ".pkl", "wb") as f:
         pk.dump(fdm_time, f)
