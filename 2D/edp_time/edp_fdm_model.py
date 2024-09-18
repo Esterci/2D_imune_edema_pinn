@@ -175,8 +175,8 @@ if __name__ == "__main__":
 
     args_dict = vars(args)
 
-    h = 0.1
-    k = 1
+    h = 0.01
+    k = 0.01
     Db = 0.0001
     Dn = 0.0001
     phi = 0.2
@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
         end = time.time()
 
-        run_time = start - end
+        run_time = end - start
 
         fdm_time.append(run_time)
 
