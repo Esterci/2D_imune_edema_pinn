@@ -175,8 +175,8 @@ if __name__ == "__main__":
 
     args_dict = vars(args)
 
-    h = 0.01
-    k = 0.01
+    h = 0.1
+    k = 0.1
     Db = 0.0001
     Dn = 0.0001
     phi = 0.2

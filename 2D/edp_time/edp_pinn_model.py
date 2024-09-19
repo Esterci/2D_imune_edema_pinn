@@ -6,7 +6,6 @@ import time
 import pickle as pk
 import argparse
 import matplotlib.pyplot as plt
-from edo_fdm_model import fdm
 
 
 activation_dict = {
@@ -37,10 +36,10 @@ def generate_model(arch_str):
 
             if len(modules) == 0:
                 if activation == "Linear":
-                    modules.append(activation_dict[activation](2, int(out_neurons)))
+                    modules.append(activation_dict[activation](3, int(out_neurons)))
 
                 else:
-                    modules.append(nn.Linear(2, int(out_neurons)))
+                    modules.append(nn.Linear(3, int(out_neurons)))
                     modules.append(activation_dict[activation]())
 
             else:
@@ -136,27 +135,133 @@ def train_test_split(x, y, z, test_size=0.5, shuffle=True):
             )
 
 
-def initial_condition(initial):
-    Cl = torch.zeros_like(initial)
-    return torch.cat([Cl, initial], dim=1)
+def gerenate_training_points(num_points, device):
+    x = torch.rand(num_points, 1).to(device)
+    y = torch.rand(num_points, 1).to(device)
+    t = torch.rand(num_points, 1).to(device) * 10
+
+    return x.requires_grad_(True), y.requires_grad_(True), t.requires_grad_(True)
 
 
-def pde(t, initial, model):
-    mesh = torch.cat([t, initial], dim=1)
+def gerenate_boundary_points(num_points, device):
+    x_boundary = torch.tensor([0.0, 1.0]).repeat(num_points // 2)
+    y_boundary = torch.rand(num_points)
 
-    Cl, Cp = model(mesh).split(1, dim=1)
+    if torch.rand(1) > 0.5:
+        x_boundary, y_boundary = y_boundary, x_boundary
+        n = torch.tensor([[0.0, -1.0], [0.0, 1.0]]).repeat(num_points // 2, 1)
+    else:
+        n = torch.tensor([[-1.0, 0.0], [1.0, 0.0]]).repeat(num_points // 2, 1)
 
-    # Calculando Cl
+    return (
+        x_boundary.to(device).requires_grad_(True).view(-1, 1),
+        y_boundary.to(device).requires_grad_(True).view(-1, 1),
+        n.to(device),
+    )
 
-    dCl_dt = torch.autograd.grad(
-        Cl,
-        t,
-        grad_outputs=torch.ones_like(Cl),
+
+def initial_condition(x, y):
+
+    Cl = torch.full_like(x, 0)
+
+    Cp = torch.full_like(x, 0)
+
+    for i, (xx, yy) in enumerate(zip(x, y)):
+        if ((xx >= 0.5) and (xx <= 0.6)) and ((yy >= 0.5) and (yy <= 0.6)):
+            Cp[i] = 0.2
+
+    return torch.cat([Cl, Cp], dim=1)
+
+
+def boundary_condition(x_b, y_b, t_b, n, model, Dn, X_nb, Db):
+
+    input_data = torch.cat([x_b, y_b, t_b], dim=1)
+
+    Cp, Cl = model(input_data).tensor_split(2, dim=1)
+
+    nx, ny = n.tensor_split(2, dim=1)
+
+    if nx[0].item() != 0:
+        dCp_dx = torch.autograd.grad(
+            Cp,
+            x_b,
+            grad_outputs=torch.ones_like(Cp),
+            create_graph=True,
+            retain_graph=True,
+        )
+
+        dCl_dx = torch.autograd.grad(
+            Cl,
+            x_b,
+            grad_outputs=torch.ones_like(Cl),
+            create_graph=True,
+            retain_graph=True,
+        )
+
+        Cl_boundary = torch.mul(
+            ((Dn * dCl_dx[0]) - X_nb * torch.mul(Cl, dCp_dx[0])), nx
+        )
+
+        Cp_boundary = torch.mul((Db * dCp_dx[0]), nx)
+
+        return torch.cat([Cl_boundary, Cp_boundary], dim=1)
+
+    else:
+        dCp_dy = torch.autograd.grad(
+            Cp,
+            y_b,
+            grad_outputs=torch.ones_like(Cp),
+            create_graph=True,
+            retain_graph=True,
+        )
+
+        dCl_dy = torch.autograd.grad(
+            Cl,
+            y_b,
+            grad_outputs=torch.ones_like(Cl),
+            create_graph=True,
+            retain_graph=True,
+        )
+
+        Cl_boundary = torch.mul(
+            ((Dn * dCl_dy[0]) - X_nb * torch.mul(Cl, dCp_dy[0])), ny
+        )
+
+        Cp_boundary = torch.mul((Db * dCp_dy[0]), ny)
+
+        return torch.cat([Cl_boundary, Cp_boundary], dim=1)
+
+
+def pde(model, x, y, t, cb, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb):
+    input_data = torch.cat([x, y, t], dim=1)
+
+    Cl, Cp = model(input_data).tensor_split(2, dim=1)
+
+    # Calculating Cp value
+
+    dCp_dx, dCp_dy = torch.autograd.grad(
+        Cp,
+        [x, y],
+        grad_outputs=torch.ones_like(Cp),
+        create_graph=True,
+        retain_graph=True,
+    )
+
+    dCp_dx_2 = torch.autograd.grad(
+        dCp_dx,
+        x,
+        grad_outputs=torch.ones_like(dCp_dx),
         create_graph=True,
         retain_graph=True,
     )[0]
 
-    # Calculando Cp
+    dCp_dy_2 = torch.autograd.grad(
+        dCp_dy,
+        y,
+        grad_outputs=torch.ones_like(dCp_dy),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
 
     dCp_dt = torch.autograd.grad(
         Cp,
@@ -166,371 +271,471 @@ def pde(t, initial, model):
         retain_graph=True,
     )[0]
 
-    return torch.cat([dCl_dt, dCp_dt], dim=1)
+    qb = cb * Cp
+    rb = lambd_nb * torch.mul(Cl, Cp)
 
+    Cp_eq = Db * (dCp_dx_2 + dCp_dy_2) - rb + qb - dCp_dt
 
-# Parsing model parameters
+    # Calculating Cl value
 
-parser = argparse.ArgumentParser(description="", add_help=False)
-parser = argparse.ArgumentParser()
-
-parser.add_argument(
-    "-f",
-    "--file",
-    type=str,
-    action="store",
-    dest="file",
-    required=True,
-    default=None,
-    help="",
-)
-
-parser.add_argument(
-    "-n",
-    "--n_epochs",
-    type=int,
-    action="store",
-    dest="n_epochs",
-    required=True,
-    default=None,
-    help="",
-)
-
-parser.add_argument(
-    "-b",
-    "--batch_size",
-    type=int,
-    action="store",
-    dest="batch_size",
-    required=True,
-    default=None,
-    help="",
-)
-
-parser.add_argument(
-    "-a",
-    "--arch_str",
-    type=str,
-    action="store",
-    dest="arch_str",
-    required=True,
-    default=None,
-    help="",
-)
-
-parser.add_argument(
-    "-g",
-    "--gpu",
-    type=str,
-    action="store",
-    dest="gpu",
-    required=False,
-    default="0",
-    help="",
-)
-
-parser.add_argument(
-    "-v",
-    "--var",
-    type=float,
-    action="store",
-    dest="var",
-    required=False,
-    default="0",
-    help="",
-)
-
-args = parser.parse_args()
-
-args_dict = vars(args)
-
-struct_name = args_dict["file"]
-n_epochs = args_dict["n_epochs"]
-batch_size = args_dict["batch_size"]
-arch_str = args_dict["arch_str"]
-gpu = args_dict["gpu"]
-initial_var = args_dict["var"]
-
-model = generate_model(arch_str)
-
-param_dict = parseParameters(struct_name)
-
-k = param_dict["k"]
-phi = param_dict["phi"]
-ksi = param_dict["ksi"]
-cb = param_dict["cb"]
-C_nmax = param_dict["Cn_max"]
-lambd_nb = param_dict["lambd_nb"]
-mi_n = param_dict["mi_n"]
-lambd_bn = param_dict["lambd_bn"]
-y_n = param_dict["y_n"]
-t_lower = param_dict["t_lower"]
-t_upper = param_dict["t_upper"]
-initial = 0.5
-
-pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
-
-size_t = int(((t_upper - t_lower) / (k)))
-
-initial_list = np.linspace(
-    initial * (1 - initial_var),
-    initial * (1 + initial_var),
-    num=size_t + 1,
-    endpoint=True,
-)
-
-print(
-    "Steps in time = {:d}\n".format(
-        size_t,
+    dCl_dx, dCl_dy = torch.autograd.grad(
+        Cl,
+        [x, y],
+        grad_outputs=torch.ones_like(Cl),
+        create_graph=True,
+        retain_graph=True,
     )
-)
 
-t_np = np.linspace(t_lower, t_upper, num=size_t + 1, endpoint=True)
+    dCl_dx_2 = torch.autograd.grad(
+        dCl_dx,
+        x,
+        grad_outputs=torch.ones_like(dCl_dx),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
 
-for i, initial in enumerate(initial_list):
-    if i == 0:
-        Cp_old, Cl_old = fdm(
-            k,
-            phi,
-            ksi,
-            cb,
-            C_nmax,
-            lambd_nb,
-            mi_n,
-            lambd_bn,
-            y_n,
-            t_lower,
-            t_upper,
-            initial,
-            plot=False,
+    dCl_dy_2 = torch.autograd.grad(
+        dCl_dy,
+        y,
+        grad_outputs=torch.ones_like(dCl_dy),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    dCl_dt = torch.autograd.grad(
+        Cl,
+        t,
+        grad_outputs=torch.ones_like(Cl),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    qn = y_n * torch.mul(Cp, (Cn_max - Cl))
+    rn = lambd_bn * torch.mul(Cl, Cp) + mi_n * Cl
+
+    Cl_eq = (
+        Dn * (dCl_dx_2 + dCl_dy_2)
+        - X_nb
+        * (
+            (torch.mul(dCl_dx, dCp_dx) + torch.mul(Cl, dCp_dx_2))
+            + (torch.mul(dCl_dy, dCp_dy) + torch.mul(Cl, dCp_dy_2))
         )
+        - rn
+        + qn
+    ) - dCl_dt
+
+    return torch.cat([Cl_eq, Cp_eq], dim=1)
+
+
+def train(
+    n_epochs,
+    batch_size,
+    decay_rate,
+    model,
+    device,
+    data_input,
+    x,
+    y,
+    t,
+    n_points,
+    constant_properties,
+    norm_weights=None,
+    validation=None,
+):
+    dt_min, dt_max = norm_weights if norm_weights else (0, 1)
+
+    loss_fn = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    lr_scheduler = optim.lr_scheduler.ExponentialLR(
+        optimizer=optimizer, gamma=decay_rate
+    )
+
+    if validation:
+        train_data, test_data, train_t, test_t, train_dom, test_dom = train_test_split(
+            data_input, t, torch.cat([x, y], dim=1), test_size=validation
+        )
+        train_x, train_y = train_dom.split(1, dim=1)
+        test_x, test_y = test_dom.split(1, dim=1)
+        train_data_input = torch.cat([train_x, train_y, train_t], dim=1)
+        test_data_input = torch.cat([test_x, test_y, test_t], dim=1)
 
     else:
-        Cp_new, Cl_new = fdm(
-            k,
-            phi,
-            ksi,
-            cb,
-            C_nmax,
-            lambd_nb,
-            mi_n,
-            lambd_bn,
-            y_n,
-            t_lower,
-            t_upper,
-            initial,
-            plot=False,
-        )
+        train_data = data_input
+        test_data = None
+        train_data_input = torch.cat([t, train_x, train_y], dim=1)
+        test_data_input = None
+        train_t = t
+        test_t = None
+        train_x = x
+        test_x = None
+        train_y = y
+        test_y = None
 
-        Cp_old = np.vstack((Cp_old.copy(), Cp_new))
-        Cl_old = np.vstack((Cl_old.copy(), Cl_new))
+    C_pde_loss_it = torch.zeros(n_epochs).to(device)
+    C_data_loss_it = torch.zeros(n_epochs).to(device)
+    C_boundary_loss_it = torch.zeros(n_epochs).to(device)
+    C_initial_loss_it = torch.zeros(n_epochs).to(device)
+    C_initial = initial_condition(train_x, train_y).to(device)
+    val_loss_it = torch.zeros(n_epochs).to(device)
 
-with open("edo_fdm_sim/Cp__" + struct_name + ".pkl", "wb") as f:
-    pk.dump(Cp_old, f)
+    for epoch in range(n_epochs):
+        for i in range(0, len(train_t), batch_size):
 
-with open("edo_fdm_sim/Cl__" + struct_name + ".pkl", "wb") as f:
-    pk.dump(Cl_old, f)
+            # Computing intial loss
+            t_initial = torch.zeros_like(train_t[i : i + batch_size])
 
-tt, ii = np.meshgrid(t_np, initial_list)
+            mesh_ini = torch.cat(
+                [train_x[i : i + batch_size], train_y[i : i + batch_size], t_initial],
+                dim=1,
+            )
 
-data_input_np = np.array([Cl_old.flatten(), Cp_old.flatten()]).T
+            C_initial_pred = model(mesh_ini)
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-    t = (
-        torch.tensor(tt, dtype=torch.float32, requires_grad=True)
-        .reshape(-1, 1)
-        .to(device)
-    )
-    initial = (
-        torch.tensor(ii, dtype=torch.float32, requires_grad=True)
-        .reshape(-1, 1)
-        .to(device)
-    )
-    data_input = torch.tensor(data_input_np, dtype=torch.float32).to(device)
-    model = model.to(device)
+            loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
 
-else:
-    device = torch.device("cpu")
-    t = torch.tensor(tt, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
-    initial = torch.tensor(ii, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
-    data_input = torch.tensor(data_input_np, dtype=torch.float32)
+            # Computing pde loss
 
-print(device)
+            x_pde, y_pde, t_pde = gerenate_training_points(n_points, device)
 
-norm_weights = None
-validation = 0.1
-
-dt_min, dt_max = norm_weights if norm_weights else (0, 1)
-
-loss_fn = nn.MSELoss()  # binary cross entropy
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.999)
-
-if validation:
-    train_data, test_data, train_t, test_t, train_initial, test_initial = (
-        train_test_split(data_input, t, initial, test_size=validation)
-    )
-    train_data_input = torch.cat([train_t, train_initial], dim=1)
-    test_data_input = torch.cat([test_t, test_initial], dim=1)
-
-else:
-    train_data = data_input
-    test_data = None
-    train_data_input = torch.cat([t, initial], dim=1)
-    test_data_input = None
-    train_t = t
-    test_t = None
-    train_initial = initial
-    test_initial = None
-
-C_pde_loss_it = torch.zeros(n_epochs).to(device)
-C_data_loss_it = torch.zeros(n_epochs).to(device)
-C_initial_loss_it = torch.zeros(n_epochs).to(device)
-C_initial = initial_condition(train_initial).to(device)
-val_loss_it = torch.zeros(n_epochs).to(device)
-
-for epoch in range(n_epochs):
-    for i in range(0, len(train_t), batch_size):
-        t_initial = torch.zeros_like(train_t[i : i + batch_size])
-
-        mesh_ini = torch.cat([t_initial, train_initial[i : i + batch_size]], dim=1)
-        C_initial_pred = model(mesh_ini)
-
-        loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
-
-        Cl, Cp = model(train_data_input[i : i + batch_size]).split(1, dim=1)
-
-        Cl_eq = (y_n * Cp * (C_nmax - Cl) - lambd_bn * Cp * Cl - mi_n * Cl) / (
-            phi * (dt_max - dt_min)
-        )
-        Cp_eq = (cb * Cp - lambd_nb * Cl * Cp) / (phi * (dt_max - dt_min))
-
-        pde_pred = torch.cat([Cl_eq, Cp_eq], dim=1)
-
-        loss_pde = loss_fn(
-            pde(
-                train_t[i : i + batch_size],
-                train_initial[i : i + batch_size],
+            predicted_pde = pde(
                 model,
-            ),
-            pde_pred,
+                x_pde,
+                y_pde,
+                t_pde,
+                constant_properties["cb"],
+                constant_properties["lambd_nb"],
+                constant_properties["Db"],
+                constant_properties["y_n"],
+                constant_properties["Cn_max"],
+                constant_properties["lambd_bn"],
+                constant_properties["mi_n"],
+                constant_properties["Dn"],
+                constant_properties["X_nb"],
+            )
+
+            loss_pde = loss_fn(
+                predicted_pde,
+                torch.zeros_like(predicted_pde),
+            )
+
+            # Computing boundary loss
+
+            x_bnd, y_bnd, n_bnd = gerenate_boundary_points(n_points, device)
+
+            predicted_boundary = boundary_condition(
+                x_bnd,
+                y_bnd,
+                t_pde,
+                n_bnd,
+                model,
+                constant_properties["Dn"],
+                constant_properties["X_nb"],
+                constant_properties["Db"],
+            )
+
+            loss_boundary = loss_fn(
+                predicted_boundary,
+                torch.zeros_like(predicted_boundary),
+            )
+
+            # Computing data loss
+
+            C_pred = model(train_data_input[i : i + batch_size])
+
+            loss_data = loss_fn(train_data[i : i + batch_size], C_pred)
+
+            # Computing validation loss
+
+            if validation:
+                with torch.no_grad():
+                    val_loss = loss_fn(test_data, model(test_data_input))
+
+            loss = loss_initial + loss_pde + loss_boundary + loss_data * 10
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+
+        C_pde_loss_it[epoch] = loss_pde.item()
+        C_boundary_loss_it[epoch] = loss_boundary.item()
+        C_initial_loss_it[epoch] = loss_initial.item()
+        C_data_loss_it[epoch] = loss_data.item()
+        val_loss_it[epoch] = val_loss.item() if validation else 0
+
+        if (epoch % 100) == 0:
+            print(
+                f"Finished epoch {epoch+1}, latest loss {loss}, validation loss {val_loss.item()}"
+                if validation
+                else f"Finished epoch {epoch+1}, latest loss {loss}"
+            )
+
+    return (
+        model,
+        C_pde_loss_it,
+        C_boundary_loss_it,
+        C_initial_loss_it,
+        C_data_loss_it,
+        val_loss_it,
+    )
+
+
+if __name__ == "__main__":
+
+    # Parsing model parameters
+
+    parser = argparse.ArgumentParser(description="", add_help=False)
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "-f",
+        "--file",
+        type=str,
+        action="store",
+        dest="file",
+        required=True,
+        default=None,
+        help="",
+    )
+
+    parser.add_argument(
+        "-n",
+        "--n_epochs",
+        type=int,
+        action="store",
+        dest="n_epochs",
+        required=True,
+        default=None,
+        help="",
+    )
+
+    parser.add_argument(
+        "-b",
+        "--batch_size",
+        type=int,
+        action="store",
+        dest="batch_size",
+        required=True,
+        default=None,
+        help="",
+    )
+
+    parser.add_argument(
+        "-a",
+        "--arch_str",
+        type=str,
+        action="store",
+        dest="arch_str",
+        required=True,
+        default=None,
+        help="",
+    )
+
+    parser.add_argument(
+        "-g",
+        "--gpu",
+        type=str,
+        action="store",
+        dest="gpu",
+        required=False,
+        default="0",
+        help="",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--var",
+        type=float,
+        action="store",
+        dest="var",
+        required=False,
+        default="0",
+        help="",
+    )
+
+    args = parser.parse_args()
+
+    args_dict = vars(args)
+
+    struct_name = args_dict["file"]
+    n_epochs = args_dict["n_epochs"]
+    batch_size = args_dict["batch_size"]
+    arch_str = args_dict["arch_str"]
+    gpu = args_dict["gpu"]
+    initial_var = args_dict["var"]
+
+    model = generate_model(arch_str)
+
+    param_dict = parseParameters(struct_name)
+
+    h = param_dict["h"]
+    k = param_dict["k"]
+    Db = param_dict["Db"]
+    Dn = param_dict["Dn"]
+    phi = param_dict["phi"]
+    ksi = param_dict["ksi"]
+    cb = param_dict["cb"]
+    lambd_nb = param_dict["lambd_nb"]
+    mi_n = param_dict["mi_n"]
+    lambd_bn = param_dict["lambd_bn"]
+    y_n = param_dict["y_n"]
+    Cn_max = param_dict["Cn_max"]
+    X_nb = param_dict["X_nb"]
+    x_dom_min = param_dict["x_dom_min"]
+    x_dom_max = param_dict["x_dom_max"]
+    y_dom_min = param_dict["y_dom_min"]
+    y_dom_max = param_dict["y_dom_max"]
+    t_dom_min = param_dict["t_dom_min"]
+    t_dom_max = param_dict["t_dom_max"]
+
+    pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
+
+    size_x = int(((x_dom_max - x_dom_min) / (h))) + 1
+    size_y = int(((y_dom_max - y_dom_min) / (h))) + 1
+    size_t = int(((t_dom_max - t_dom_min) / (k))) + 1
+
+    with open("fdm_sim/Cp__" + struct_name + ".pkl", "rb") as f:
+        Cb_fdm = pk.load(f)
+
+    with open("fdm_sim/Cl__" + struct_name + ".pkl", "rb") as f:
+        Cn_fdm = pk.load(f)
+
+    t_np = np.linspace(
+        t_dom_min, t_dom_max, num=size_t, endpoint=True, dtype=np.float32
+    )
+    x_np = np.linspace(
+        x_dom_min, x_dom_max, num=size_x, endpoint=True, dtype=np.float32
+    )
+    y_np = np.linspace(
+        y_dom_min, y_dom_max, num=size_y, endpoint=True, dtype=np.float32
+    )
+
+    tt, xx, yy = np.meshgrid(
+        t_np,
+        x_np,
+        y_np,
+    )
+
+    data_input_np = np.array([Cn_fdm.flatten(), Cb_fdm.flatten()]).T
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        t_tc = (
+            torch.tensor(tt, dtype=torch.float32, requires_grad=True)
+            .reshape(-1, 1)
+            .to(device)
         )
-
-        C_pred = torch.cat([Cl, Cp], dim=1)
-
-        loss_data = loss_fn(train_data[i : i + batch_size], C_pred)
-
-        loss = 15 * loss_initial + loss_pde + 40 * loss_data
-
-        if validation:
-            with torch.no_grad():
-                val_loss = loss_fn(test_data, model(test_data_input))
-        # val_loss = torch.tensor([0])
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        lr_scheduler.step()
-
-    C_pde_loss_it[epoch] = loss_pde.item()
-    C_initial_loss_it[epoch] = loss_initial.item()
-    C_data_loss_it[epoch] = loss_data.item()
-    val_loss_it[epoch] = val_loss.item() if validation else 0
-
-    if (epoch % 100) == 0:
-        print(
-            f"Finished epoch {epoch+1}, latest loss {loss}, validation loss {val_loss.item()}"
-            if validation
-            else f"Finished epoch {epoch+1}, latest loss {loss}"
+        x_tc = (
+            torch.tensor(xx, dtype=torch.float32, requires_grad=True)
+            .reshape(-1, 1)
+            .to(device)
         )
-
-with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
-    pk.dump(C_pde_loss_it.cpu().numpy(), f)
-
-with open("learning_curves/C_data_loss_it__" + pinn_file + ".pkl", "wb") as f:
-    pk.dump(C_data_loss_it.cpu().numpy(), f)
-
-with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
-    pk.dump(C_initial_loss_it.cpu().numpy(), f)
-
-with open("learning_curves/val_loss_it__" + pinn_file + ".pkl", "wb") as f:
-    pk.dump(val_loss_it.cpu().numpy(), f)
-
-model_cpu = model.to("cpu")
-
-speed_up = []
-
-mesh = torch.cat([t, initial], dim=1).to("cpu")
-
-for i in range(10):
-    fdm_start = time.time()
-
-    for ini in initial_list:
-        _, _ = fdm(
-            k,
-            phi,
-            ksi,
-            cb,
-            C_nmax,
-            lambd_nb,
-            mi_n,
-            lambd_bn,
-            y_n,
-            t_lower,
-            t_upper,
-            ini,
+        y_tc = (
+            torch.tensor(yy, dtype=torch.float32, requires_grad=True)
+            .reshape(-1, 1)
+            .to(device)
         )
+        data_input = torch.tensor(data_input_np, dtype=torch.float32).to(device)
 
-    fdm_end = time.time()
+    else:
+        device = torch.device("cpu")
+        t_tc = torch.tensor(tt, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
+        x_tc = torch.tensor(xx, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
+        y_tc = torch.tensor(yy, dtype=torch.float32, requires_grad=True).reshape(-1, 1)
+        data_input = torch.tensor(data_input_np, dtype=torch.float32)
 
-    pinn_start = time.time()
+    print(device)
 
-    with torch.no_grad():
-        Cl_pinn, Cp_pinn = model_cpu(mesh).split(1, dim=1)
+    del xx
+    del yy
+    del tt
 
-    pinn_end = time.time()
+    decay_rate = 0.999
 
-    fdm_time = fdm_end - fdm_start
+    constant_properties = {
+        "h": h,
+        "k": k,
+        "Db": Db,
+        "Dn": Dn,
+        "phi": phi,
+        "ksi": ksi,
+        "cb": cb,
+        "lambd_nb": lambd_nb,
+        "mi_n": mi_n,
+        "lambd_bn": lambd_bn,
+        "y_n": y_n,
+        "Cn_max": Cn_max,
+        "X_nb": X_nb,
+    }
 
-    pinn_time = pinn_end - pinn_start
+    (
+        model,
+        C_pde_loss_it,
+        C_boundary_loss_it,
+        C_initial_loss_it,
+        C_data_loss_it,
+        val_loss_it,
+    ) = train(
+        n_epochs=n_epochs,
+        batch_size=batch_size,
+        decay_rate=decay_rate,
+        model=model,
+        device=device,
+        data_input=data_input,
+        x=x_tc,
+        y=y_tc,
+        t=t_tc,
+        n_points=batch_size,
+        constant_properties=constant_properties,
+        validation=0.1,
+    )
 
-    speed_up.append(fdm_time / pinn_time)
+    with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
+        pk.dump(C_pde_loss_it.cpu().numpy(),f)
 
-mean_speed_up = np.mean(speed_up)
-std_speed_up = np.std(speed_up)
+    with open("learning_curves/C_data_loss_it__" + pinn_file + ".pkl", "wb") as f:
+        pk.dump(C_data_loss_it.cpu().numpy(),f)
 
-rmse = np.mean(
-    [
-        ((Cl_p[0] - Cl_f) ** 2 + (Cp_p[0] - Cp_f) ** 2) ** 0.5
-        for Cl_p, Cp_p, Cl_f, Cp_f in zip(
-            Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
-        )
-    ]
-)
+    with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
+        pk.dump(C_initial_loss_it.cpu().numpy(),f)
 
-max_ae = np.max(
-    [
-        [((Cl_p[0] - Cl_f) ** 2) ** 0.5, ((Cp_p[0] - Cp_f) ** 2) ** 0.5]
-        for Cl_p, Cp_p, Cl_f, Cp_f in zip(
-            Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
-        )
-    ]
-)
+    with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
+        pk.dump(C_initial_loss_it.cpu().numpy(),f)
 
-output = {
-    "rmse": rmse,
-    "max_ae": max_ae,
-    "mean_speed_up": mean_speed_up,
-    "std_speed_up": std_speed_up,
-    "Cl_pinn": Cl_pinn,
-    "Cp_pinn": Cp_pinn,
-}
+    with open("learning_curves/val_loss_it__" + pinn_file + ".pkl", "wb") as f:
+        pk.dump(val_loss_it.cpu().numpy(),f)
 
-print("Erro absoluto médio", rmse)
-print("Erro absoluto máximo", max_ae)
-print("Speed Up: {} +/-{}".format(mean_speed_up, std_speed_up))
-print("=" * 20 + "\n\n\n")
+    rmse = np.mean(
+        [
+            ((Cl_p[0] - Cl_f) ** 2 + (Cp_p[0] - Cp_f) ** 2) ** 0.5
+            for Cl_p, Cp_p, Cl_f, Cp_f in zip(
+                Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
+            )
+        ]
+    )
 
-with open("edo_pinn_sim/" + pinn_file + ".pkl", "wb") as f:
-    pk.dump(output, f)
+    max_ae = np.max(
+        [
+            [((Cl_p[0] - Cl_f) ** 2) ** 0.5, ((Cp_p[0] - Cp_f) ** 2) ** 0.5]
+            for Cl_p, Cp_p, Cl_f, Cp_f in zip(
+                Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
+            )
+        ]
+    )
+
+    output = {
+        "rmse": rmse,
+        "max_ae": max_ae,
+        "mean_speed_up": mean_speed_up,
+        "std_speed_up": std_speed_up,
+        "Cl_pinn": Cl_pinn,
+        "Cp_pinn": Cp_pinn,
+    }
+
+    print("Erro absoluto médio", rmse)
+    print("Erro absoluto máximo", max_ae)
+    print("Speed Up: {} +/-{}".format(mean_speed_up, std_speed_up))
+    print("=" * 20 + "\n\n\n")
+
+    with open("edo_pinn_sim/" + pinn_file + ".pkl", "wb") as f:
+        pk.dump(output, f)
