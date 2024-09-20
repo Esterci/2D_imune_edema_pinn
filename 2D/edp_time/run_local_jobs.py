@@ -5,7 +5,7 @@ import numpy as np
 
 sim_list = glob.glob("edo_pinn_sim/*")
 
-file = "k--1__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
+file = "h--0.05__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__Cn_max--0.5__X_nb--0.0001__x_dom_min--0__x_dom_max--1__y_dom_min--0__y_dom_max--1__t_dom_min--0__t_dom_max--10"
 # n_hd_layers = [1, 2, 3]
 n_hd_layers = [2]  # , 3]
 n_neurons = [2**2, 2**3, 2**4]
@@ -58,8 +58,6 @@ for n_l in n_hd_layers:
                         + str(int(batch[0]))
                         + " -a "
                         + arch_str
-                        + " -v "
-                        + str(0.2)
                     )
                 )
 

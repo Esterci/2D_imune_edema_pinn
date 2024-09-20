@@ -230,7 +230,6 @@ def boundary_condition(t_b, x_b, y_b, n, model, Dn, X_nb, Db):
         Cp_boundary = torch.mul((Db * dCp_dy[0]), ny)
 
         return torch.cat([Cl_boundary, Cp_boundary], dim=1)
-    
 
 
 def pde(model, t, x, y, cb, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb):
@@ -531,28 +530,7 @@ if __name__ == "__main__":
         help="",
     )
 
-    parser.add_argument(
-        "-g",
-        "--gpu",
-        type=str,
-        action="store",
-        dest="gpu",
-        required=False,
-        default="0",
-        help="",
-    )
-
-    parser.add_argument(
-        "-v",
-        "--var",
-        type=float,
-        action="store",
-        dest="var",
-        required=False,
-        default="0",
-        help="",
-    )
-
+    
     args = parser.parse_args()
 
     args_dict = vars(args)
@@ -600,10 +578,15 @@ if __name__ == "__main__":
     with open("fdm_sim/Cl__" + struct_name + ".pkl", "rb") as f:
         Cn_fdm = pk.load(f)
 
-    t_np = np.linspace(t_dom_min, t_dom_max, num=size_t, endpoint=True, dtype=np.float32)
-    x_np = np.linspace(x_dom_min, x_dom_max, num=size_x, endpoint=True, dtype=np.float32)
-    y_np = np.linspace(y_dom_min, y_dom_max, num=size_y, endpoint=True, dtype=np.float32)
-
+    t_np = np.linspace(
+        t_dom_min, t_dom_max, num=size_t, endpoint=True, dtype=np.float32
+    )
+    x_np = np.linspace(
+        x_dom_min, x_dom_max, num=size_x, endpoint=True, dtype=np.float32
+    )
+    y_np = np.linspace(
+        y_dom_min, y_dom_max, num=size_y, endpoint=True, dtype=np.float32
+    )
 
     xx, tt, yy = np.meshgrid(
         x_np,
@@ -686,19 +669,19 @@ if __name__ == "__main__":
     )
 
     with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
-        pk.dump(C_pde_loss_it.cpu().numpy(),f)
+        pk.dump(C_pde_loss_it.cpu().numpy(), f)
 
     with open("learning_curves/C_data_loss_it__" + pinn_file + ".pkl", "wb") as f:
-        pk.dump(C_data_loss_it.cpu().numpy(),f)
+        pk.dump(C_data_loss_it.cpu().numpy(), f)
 
     with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
-        pk.dump(C_initial_loss_it.cpu().numpy(),f)
+        pk.dump(C_initial_loss_it.cpu().numpy(), f)
 
     with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
-        pk.dump(C_initial_loss_it.cpu().numpy(),f)
+        pk.dump(C_initial_loss_it.cpu().numpy(), f)
 
     with open("learning_curves/val_loss_it__" + pinn_file + ".pkl", "wb") as f:
-        pk.dump(val_loss_it.cpu().numpy(),f)
+        pk.dump(val_loss_it.cpu().numpy(), f)
 
     torch.set_num_threads(1)
 
@@ -709,7 +692,7 @@ if __name__ == "__main__":
 
     speed_up = []
 
-    mesh = torch.cat([t_tc,x_tc, y_tc], dim=1).to("cpu")
+    mesh = torch.cat([t_tc, x_tc, y_tc], dim=1).to("cpu")
 
     for i in range(len(time_fdm)):
 
