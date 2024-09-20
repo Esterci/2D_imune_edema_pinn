@@ -5,6 +5,66 @@ import pickle as pk
 import time
 
 
+def create_strcut_name(
+    h,
+    k,
+    Db,
+    Dn,
+    phi,
+    ksi,
+    cb,
+    lambd_nb,
+    mi_n,
+    lambd_bn,
+    y_n,
+    Cn_max,
+    X_nb,
+    x_dom,
+    y_dom,
+    t_dom,
+):
+    return (
+        "h--"
+        + str(h)
+        + "__k--"
+        + str(k)
+        + "__Db--"
+        + str(Db)
+        + "__Dn--"
+        + str(Dn)
+        + "__phi--"
+        + str(phi)
+        + "__ksi--"
+        + str(ksi)
+        + "__cb--"
+        + str(cb)
+        + "__lambd_nb--"
+        + str(lambd_nb)
+        + "__mi_n--"
+        + str(mi_n)
+        + "__lambd_bn--"
+        + str(lambd_bn)
+        + "__y_n--"
+        + str(y_n)
+        + "__Cn_max--"
+        + str(Cn_max)
+        + "__X_nb--"
+        + str(X_nb)
+        + "__x_dom_min--"
+        + str(x_dom[0])
+        + "__x_dom_max--"
+        + str(x_dom[-1])
+        + "__y_dom_min--"
+        + str(y_dom[0])
+        + "__y_dom_max--"
+        + str(y_dom[-1])
+        + "__t_dom_min--"
+        + str(t_dom[0])
+        + "__t_dom_max--"
+        + str(t_dom[-1])
+    )
+
+
 def fb(Cb, Cn, cb, lambd_nb):
     return (cb - lambd_nb * Cn) * Cb
 
@@ -175,7 +235,7 @@ if __name__ == "__main__":
 
     args_dict = vars(args)
 
-    h = 0.1
+    h = 0.05
     k = 0.1
     Db = 0.0001
     Dn = 0.0001
@@ -245,45 +305,23 @@ if __name__ == "__main__":
 
         fdm_time.append(run_time)
 
-    struct_name = (
-        "h--"
-        + str(h)
-        + "__k--"
-        + str(k)
-        + "__Db--"
-        + str(Db)
-        + "__Dn--"
-        + str(Dn)
-        + "__phi--"
-        + str(phi)
-        + "__ksi--"
-        + str(ksi)
-        + "__cb--"
-        + str(cb)
-        + "__lambd_nb--"
-        + str(lambd_nb)
-        + "__mi_n--"
-        + str(mi_n)
-        + "__lambd_bn--"
-        + str(lambd_bn)
-        + "__y_n--"
-        + str(y_n)
-        + "__Cn_max--"
-        + str(Cn_max)
-        + "__X_nb--"
-        + str(X_nb)
-        + "__x_dom_min--"
-        + str(x_dom[0])
-        + "__x_dom_max--"
-        + str(x_dom[-1])
-        + "__y_dom_min--"
-        + str(y_dom[0])
-        + "__y_dom_max--"
-        + str(y_dom[-1])
-        + "__t_dom_min--"
-        + str(t_dom[0])
-        + "__t_dom_max--"
-        + str(t_dom[-1])
+    struct_name = create_strcut_name(
+        h,
+        k,
+        Db,
+        Dn,
+        phi,
+        ksi,
+        cb,
+        lambd_nb,
+        mi_n,
+        lambd_bn,
+        y_n,
+        Cn_max,
+        X_nb,
+        x_dom,
+        y_dom,
+        t_dom,
     )
 
     print("struct_name: ", struct_name)

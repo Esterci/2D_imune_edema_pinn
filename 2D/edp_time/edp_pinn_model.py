@@ -173,9 +173,9 @@ def initial_condition(x, y):
     return torch.cat([Cl, Cp], dim=1)
 
 
-def boundary_condition(x_b, y_b, t_b, n, model, Dn, X_nb, Db):
+def boundary_condition(t_b, x_b, y_b, n, model, Dn, X_nb, Db):
 
-    input_data = torch.cat([x_b, y_b, t_b], dim=1)
+    input_data = torch.cat([t_b, x_b, y_b], dim=1)
 
     Cp, Cl = model(input_data).tensor_split(2, dim=1)
 
@@ -230,12 +230,12 @@ def boundary_condition(x_b, y_b, t_b, n, model, Dn, X_nb, Db):
         Cp_boundary = torch.mul((Db * dCp_dy[0]), ny)
 
         return torch.cat([Cl_boundary, Cp_boundary], dim=1)
+    
 
 
-def pde(model, x, y, t, cb, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb):
-    input_data = torch.cat([x, y, t], dim=1)
+def pde(model, t, x, y, cb, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb):
 
-    Cl, Cp = model(input_data).tensor_split(2, dim=1)
+    Cl, Cp = model(torch.cat([t, x, y], dim=1)).tensor_split(2, dim=1)
 
     # Calculating Cp value
 
@@ -334,9 +334,9 @@ def train(
     model,
     device,
     data_input,
+    t,
     x,
     y,
-    t,
     n_points,
     constant_properties,
     norm_weights=None,
@@ -356,8 +356,8 @@ def train(
         )
         train_x, train_y = train_dom.split(1, dim=1)
         test_x, test_y = test_dom.split(1, dim=1)
-        train_data_input = torch.cat([train_x, train_y, train_t], dim=1)
-        test_data_input = torch.cat([test_x, test_y, test_t], dim=1)
+        train_data_input = torch.cat([train_t, train_x, train_y], dim=1)
+        test_data_input = torch.cat([test_t, test_x, test_y], dim=1)
 
     else:
         train_data = data_input
@@ -385,7 +385,7 @@ def train(
             t_initial = torch.zeros_like(train_t[i : i + batch_size])
 
             mesh_ini = torch.cat(
-                [train_x[i : i + batch_size], train_y[i : i + batch_size], t_initial],
+                [t_initial, train_x[i : i + batch_size], train_y[i : i + batch_size]],
                 dim=1,
             )
 
@@ -399,9 +399,9 @@ def train(
 
             predicted_pde = pde(
                 model,
+                t_pde,
                 x_pde,
                 y_pde,
-                t_pde,
                 constant_properties["cb"],
                 constant_properties["lambd_nb"],
                 constant_properties["Db"],
@@ -423,9 +423,9 @@ def train(
             x_bnd, y_bnd, n_bnd = gerenate_boundary_points(n_points, device)
 
             predicted_boundary = boundary_condition(
+                t_pde,
                 x_bnd,
                 y_bnd,
-                t_pde,
                 n_bnd,
                 model,
                 constant_properties["Dn"],
@@ -450,7 +450,7 @@ def train(
                 with torch.no_grad():
                     val_loss = loss_fn(test_data, model(test_data_input))
 
-            loss = loss_initial + loss_pde + loss_boundary + loss_data * 10
+            loss = 100 * loss_initial + loss_pde + loss_boundary + loss_data * 10
 
             optimizer.zero_grad()
             loss.backward()
@@ -463,7 +463,7 @@ def train(
         C_data_loss_it[epoch] = loss_data.item()
         val_loss_it[epoch] = val_loss.item() if validation else 0
 
-        if (epoch % 100) == 0:
+        if ((epoch + 1) % 100) == 0 or (epoch == 0):
             print(
                 f"Finished epoch {epoch+1}, latest loss {loss}, validation loss {val_loss.item()}"
                 if validation
@@ -600,19 +600,14 @@ if __name__ == "__main__":
     with open("fdm_sim/Cl__" + struct_name + ".pkl", "rb") as f:
         Cn_fdm = pk.load(f)
 
-    t_np = np.linspace(
-        t_dom_min, t_dom_max, num=size_t, endpoint=True, dtype=np.float32
-    )
-    x_np = np.linspace(
-        x_dom_min, x_dom_max, num=size_x, endpoint=True, dtype=np.float32
-    )
-    y_np = np.linspace(
-        y_dom_min, y_dom_max, num=size_y, endpoint=True, dtype=np.float32
-    )
+    t_np = np.linspace(t_dom_min, t_dom_max, num=size_t, endpoint=True, dtype=np.float32)
+    x_np = np.linspace(x_dom_min, x_dom_max, num=size_x, endpoint=True, dtype=np.float32)
+    y_np = np.linspace(y_dom_min, y_dom_max, num=size_y, endpoint=True, dtype=np.float32)
 
-    tt, xx, yy = np.meshgrid(
-        t_np,
+
+    xx, tt, yy = np.meshgrid(
         x_np,
+        t_np,
         y_np,
     )
 
@@ -705,11 +700,38 @@ if __name__ == "__main__":
     with open("learning_curves/val_loss_it__" + pinn_file + ".pkl", "wb") as f:
         pk.dump(val_loss_it.cpu().numpy(),f)
 
+    torch.set_num_threads(1)
+
+    with open("fdm_sim/time__" + struct_name + ".pkl", "rb") as f:
+        time_fdm = pk.load(f)
+
+    model_cpu = model.to("cpu")
+
+    speed_up = []
+
+    mesh = torch.cat([t_tc,x_tc, y_tc], dim=1).to("cpu")
+
+    for i in range(len(time_fdm)):
+
+        pinn_start = time.time()
+
+        with torch.no_grad():
+            Cl_pinn, Cp_pinn = model_cpu(mesh).split(1, dim=1)
+
+        pinn_end = time.time()
+
+        pinn_time = pinn_end - pinn_start
+
+        speed_up.append(time_fdm[i] / pinn_time)
+
+    mean_speed_up = np.mean(speed_up)
+    std_speed_up = np.std(speed_up)
+
     rmse = np.mean(
         [
             ((Cl_p[0] - Cl_f) ** 2 + (Cp_p[0] - Cp_f) ** 2) ** 0.5
             for Cl_p, Cp_p, Cl_f, Cp_f in zip(
-                Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
+                Cl_pinn, Cp_pinn, Cn_fdm.flatten(), Cb_fdm.flatten()
             )
         ]
     )
@@ -718,7 +740,7 @@ if __name__ == "__main__":
         [
             [((Cl_p[0] - Cl_f) ** 2) ** 0.5, ((Cp_p[0] - Cp_f) ** 2) ** 0.5]
             for Cl_p, Cp_p, Cl_f, Cp_f in zip(
-                Cl_pinn, Cp_pinn, Cl_old.flatten(), Cp_old.flatten()
+                Cl_pinn, Cp_pinn, Cn_fdm.flatten(), Cb_fdm.flatten()
             )
         ]
     )
