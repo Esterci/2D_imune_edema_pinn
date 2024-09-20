@@ -32,7 +32,7 @@ v_gpu = [
     "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
 ]
 
-file = "k--0.1__phi--0.2__ksi--0.0__cb--0.15__Cn_max--0.55__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__t_lower--0.0__t_upper--10.0"
+file = "h--0.05__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__Cn_max--0.5__X_nb--0.0001__x_dom_min--0__x_dom_max--1__y_dom_min--0__y_dom_max--1__t_dom_min--0__t_dom_max--10"
 
 n_hd_layers = [3, 4]
 
@@ -45,7 +45,7 @@ activation_func = [
     "SiLU",
 ]
 
-batch_size = [(1000, 300)]
+batch_size = [(1000, 400800)]
 
 possible_layers = list(product(activation_func, n_neurons))
 
@@ -128,9 +128,7 @@ for n_l in n_hd_layers:
                 + " -a "
                 + arch_str
                 + " -g "
-                + str(v_gpu[count // 20 % len(v_gpu)])
-                + " -v "
-                + str(0.2),
+                + str(v_gpu[count // 20 % len(v_gpu)]),
                 "jobs/pinn_" + str(count // 20) + ".job",
             )
 

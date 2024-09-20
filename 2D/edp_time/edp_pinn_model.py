@@ -530,7 +530,17 @@ if __name__ == "__main__":
         help="",
     )
 
-    
+    parser.add_argument(
+        "-g",
+        "--gpu",
+        type=str,
+        action="store",
+        dest="gpu",
+        required=False,
+        default="0",
+        help="",
+    )
+
     args = parser.parse_args()
 
     args_dict = vars(args)
