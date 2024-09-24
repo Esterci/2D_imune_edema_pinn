@@ -115,9 +115,14 @@ def train_data(
     )
 
     if validation:
-        train_data, test_data, train_t, test_t, train_initial, test_initial = (
-            train_test_split(data_input, t, initial, test_size=validation)
-        )
+        (
+            train_data,
+            test_data,
+            train_t,
+            test_t,
+            train_initial,
+            test_initial,
+        ) = train_test_split(data_input, t, initial, test_size=validation)
         train_data_input = torch.cat([train_t, train_initial], dim=1)
         test_data_input = torch.cat([test_t, test_initial], dim=1)
 

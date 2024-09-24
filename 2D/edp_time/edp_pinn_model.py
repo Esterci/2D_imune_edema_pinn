@@ -326,157 +326,216 @@ def pde(model, t, x, y, cb, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb)
     return torch.cat([Cl_eq, Cp_eq], dim=1)
 
 
-def train(
-    n_epochs,
-    batch_size,
-    decay_rate,
-    model,
-    device,
-    data_input,
-    t,
-    x,
-    y,
-    n_points,
-    constant_properties,
-    norm_weights=None,
-    validation=None,
-):
-    dt_min, dt_max = norm_weights if norm_weights else (0, 1)
+class train:
+    def __init__(
+        self,
+        n_epochs,
+        batch_size,
+        decay_rate,
+        model,
+        device,
+        data_input,
+        t,
+        x,
+        y,
+        n_points,
+        constant_properties,
+        norm_weights=None,
+        validation=None,
+    ):
+        self.n_epochs = n_epochs
+        self.batch_size = batch_size
+        self.decay_rate = decay_rate
+        self.model = model.to(device)
+        self.device = device
+        self.data_input = data_input
+        self.t = t
+        self.x = x
+        self.y = y
+        self.n_points = n_points
+        self.constant_properties = constant_properties
+        self.norm_weights = norm_weights
+        self.validation = validation
+        pass
 
-    loss_fn = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    lr_scheduler = optim.lr_scheduler.ExponentialLR(
-        optimizer=optimizer, gamma=decay_rate
-    )
+    def loss_func(
+        self,
+    ):
+        # Computing intial loss
+        t_initial = torch.zeros_like(self.train_t[self.i : self.i + self.batch_size]).to(self.device)
 
-    if validation:
-        train_data, test_data, train_t, test_t, train_dom, test_dom = train_test_split(
-            data_input, t, torch.cat([x, y], dim=1), test_size=validation
+        mesh_ini = torch.cat(
+            [
+                t_initial,
+                self.train_x[self.i : self.i + self.batch_size],
+                self.train_y[self.i : self.i + self.batch_size],
+            ],
+            dim=1,
         )
-        train_x, train_y = train_dom.split(1, dim=1)
-        test_x, test_y = test_dom.split(1, dim=1)
-        train_data_input = torch.cat([train_t, train_x, train_y], dim=1)
-        test_data_input = torch.cat([test_t, test_x, test_y], dim=1)
 
-    else:
-        train_data = data_input
-        test_data = None
-        train_data_input = torch.cat([t, train_x, train_y], dim=1)
-        test_data_input = None
-        train_t = t
-        test_t = None
-        train_x = x
-        test_x = None
-        train_y = y
-        test_y = None
+        C_initial_pred = model(mesh_ini)
 
-    C_pde_loss_it = torch.zeros(n_epochs).to(device)
-    C_data_loss_it = torch.zeros(n_epochs).to(device)
-    C_boundary_loss_it = torch.zeros(n_epochs).to(device)
-    C_initial_loss_it = torch.zeros(n_epochs).to(device)
-    C_initial = initial_condition(train_x, train_y).to(device)
-    val_loss_it = torch.zeros(n_epochs).to(device)
+        self.loss_initial = self.criterium(
+            self.C_initial[self.i : self.i + self.batch_size], C_initial_pred
+        )
 
-    for epoch in range(n_epochs):
-        for i in range(0, len(train_t), batch_size):
+        # Computing pde loss
 
-            # Computing intial loss
-            t_initial = torch.zeros_like(train_t[i : i + batch_size])
+        x_pde, y_pde, t_pde = gerenate_training_points(self.n_points, device)
 
-            mesh_ini = torch.cat(
-                [t_initial, train_x[i : i + batch_size], train_y[i : i + batch_size]],
-                dim=1,
+        predicted_pde = pde(
+            model,
+            t_pde,
+            x_pde,
+            y_pde,
+            self.constant_properties["cb"],
+            self.constant_properties["lambd_nb"],
+            self.constant_properties["Db"],
+            self.constant_properties["y_n"],
+            self.constant_properties["Cn_max"],
+            self.constant_properties["lambd_bn"],
+            self.constant_properties["mi_n"],
+            self.constant_properties["Dn"],
+            self.constant_properties["X_nb"],
+        )
+
+        self.loss_pde = self.criterium(
+            predicted_pde,
+            torch.zeros_like(predicted_pde),
+        )
+
+        # Computing boundary loss
+
+        x_bnd, y_bnd, n_bnd = gerenate_boundary_points(self.n_points, device)
+
+        predicted_boundary = boundary_condition(
+            t_pde,
+            x_bnd,
+            y_bnd,
+            n_bnd,
+            model,
+            self.constant_properties["Dn"],
+            self.constant_properties["X_nb"],
+            self.constant_properties["Db"],
+        )
+
+        self.loss_boundary = self.criterium(
+            predicted_boundary,
+            torch.zeros_like(predicted_boundary),
+        )
+
+        # Computing data loss
+
+        C_pred = model(self.train_data_input[self.i : self.i + self.batch_size])
+
+        self.loss_data = self.criterium(
+            self.train_data[self.i : self.i + self.batch_size], C_pred
+        )
+
+        self.loss = (
+            10 * self.loss_initial
+            + self.loss_pde
+            + self.loss_boundary
+            + self.loss_data * 10
+        )
+
+        self.loss.backward()
+
+        return self.loss
+
+    def execute(
+        self,
+    ):
+        self.criterium = nn.MSELoss()
+
+        dt_min, dt_max = self.norm_weights if self.norm_weights else (0, 1)
+
+        self.optimizer = optim.Adam(model.parameters(), lr=0.001)
+        self.lr_scheduler = optim.lr_scheduler.ExponentialLR(
+            optimizer=self.optimizer, gamma=self.decay_rate
+        )
+
+        if self.validation:
+            (
+                self.train_data,
+                self.test_data,
+                self.train_t,
+                self.test_t,
+                train_dom,
+                test_dom,
+            ) = train_test_split(
+                self.data_input,
+                self.t,
+                torch.cat([self.x, self.y], dim=1),
+                test_size=self.validation,
+            )
+            self.train_x, self.train_y = train_dom.split(1, dim=1)
+            self.test_x, self.test_y = test_dom.split(1, dim=1)
+            self.train_data_input = torch.cat(
+                [self.train_t, self.train_x, self.train_y], dim=1
+            )
+            self.test_data_input = torch.cat(
+                [self.test_t, self.test_x, self.test_y], dim=1
             )
 
-            C_initial_pred = model(mesh_ini)
-
-            loss_initial = loss_fn(C_initial[i : i + batch_size], C_initial_pred)
-
-            # Computing pde loss
-
-            x_pde, y_pde, t_pde = gerenate_training_points(n_points, device)
-
-            predicted_pde = pde(
-                model,
-                t_pde,
-                x_pde,
-                y_pde,
-                constant_properties["cb"],
-                constant_properties["lambd_nb"],
-                constant_properties["Db"],
-                constant_properties["y_n"],
-                constant_properties["Cn_max"],
-                constant_properties["lambd_bn"],
-                constant_properties["mi_n"],
-                constant_properties["Dn"],
-                constant_properties["X_nb"],
+        else:
+            self.train_data = data_input
+            self.test_data_input = None
+            self.train_t = self.t
+            self.test_t = None
+            self.train_x = self.x
+            self.test_x = None
+            self.train_y = self.y
+            self.test_y = None
+            self.test_data = None
+            self.train_data_input = torch.cat(
+                [self.t, self.train_x, self.train_y], dim=1
             )
 
-            loss_pde = loss_fn(
-                predicted_pde,
-                torch.zeros_like(predicted_pde),
-            )
+        C_pde_loss_it = torch.zeros(self.n_epochs).to(device)
+        C_data_loss_it = torch.zeros(self.n_epochs).to(device)
+        C_boundary_loss_it = torch.zeros(self.n_epochs).to(device)
+        C_initial_loss_it = torch.zeros(self.n_epochs).to(device)
+        self.C_initial = initial_condition(self.train_x, self.train_y).to(device)
+        val_loss_it = torch.zeros(self.n_epochs).to(device)
 
-            # Computing boundary loss
+        for epoch in range(self.n_epochs):
+            for self.i in range(0, len(self.train_t), self.batch_size):
 
-            x_bnd, y_bnd, n_bnd = gerenate_boundary_points(n_points, device)
+                self.optimizer.zero_grad()
 
-            predicted_boundary = boundary_condition(
-                t_pde,
-                x_bnd,
-                y_bnd,
-                n_bnd,
-                model,
-                constant_properties["Dn"],
-                constant_properties["X_nb"],
-                constant_properties["Db"],
-            )
-
-            loss_boundary = loss_fn(
-                predicted_boundary,
-                torch.zeros_like(predicted_boundary),
-            )
-
-            # Computing data loss
-
-            C_pred = model(train_data_input[i : i + batch_size])
-
-            loss_data = loss_fn(train_data[i : i + batch_size], C_pred)
+                self.optimizer.step(self.loss_func)
+                self.lr_scheduler.step()
 
             # Computing validation loss
 
-            if validation:
+            if self.validation:
                 with torch.no_grad():
-                    val_loss = loss_fn(test_data, model(test_data_input))
+                    val_loss = self.criterium(
+                        self.test_data, model(self.test_data_input)
+                    )
 
-            loss = 100 * loss_initial + loss_pde + loss_boundary + loss_data * 10
+            C_pde_loss_it[epoch] = self.loss_pde.item()
+            C_boundary_loss_it[epoch] = self.loss_boundary.item()
+            C_initial_loss_it[epoch] = self.loss_initial.item()
+            C_data_loss_it[epoch] = self.loss_data.item()
+            val_loss_it[epoch] = val_loss.item() if self.validation else 0
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            lr_scheduler.step()
+            if ((epoch + 1) % 100) == 0 or (epoch == 0):
+                print(
+                    f"Finished epoch {epoch+1}, latest loss {self.loss}, validation loss {val_loss.item()}"
+                    if self.validation
+                    else f"Finished epoch {epoch+1}, latest loss {self.loss}"
+                )
 
-        C_pde_loss_it[epoch] = loss_pde.item()
-        C_boundary_loss_it[epoch] = loss_boundary.item()
-        C_initial_loss_it[epoch] = loss_initial.item()
-        C_data_loss_it[epoch] = loss_data.item()
-        val_loss_it[epoch] = val_loss.item() if validation else 0
-
-        if ((epoch + 1) % 100) == 0 or (epoch == 0):
-            print(
-                f"Finished epoch {epoch+1}, latest loss {loss}, validation loss {val_loss.item()}"
-                if validation
-                else f"Finished epoch {epoch+1}, latest loss {loss}"
-            )
-
-    return (
-        model,
-        C_pde_loss_it,
-        C_boundary_loss_it,
-        C_initial_loss_it,
-        C_data_loss_it,
-        val_loss_it,
-    )
+        return (
+            model,
+            C_pde_loss_it,
+            C_boundary_loss_it,
+            C_initial_loss_it,
+            C_data_loss_it,
+            val_loss_it,
+        )
 
 
 if __name__ == "__main__":
@@ -537,7 +596,7 @@ if __name__ == "__main__":
         action="store",
         dest="gpu",
         required=False,
-        default="0",
+        default=None,
         help="",
     )
 
@@ -550,7 +609,6 @@ if __name__ == "__main__":
     batch_size = args_dict["batch_size"]
     arch_str = args_dict["arch_str"]
     gpu = args_dict["gpu"]
-    initial_var = args_dict["var"]
 
     model = generate_model(arch_str)
 
@@ -656,14 +714,7 @@ if __name__ == "__main__":
         "X_nb": X_nb,
     }
 
-    (
-        model,
-        C_pde_loss_it,
-        C_boundary_loss_it,
-        C_initial_loss_it,
-        C_data_loss_it,
-        val_loss_it,
-    ) = train(
+    trainer = train(
         n_epochs=n_epochs,
         batch_size=batch_size,
         decay_rate=decay_rate,
@@ -677,6 +728,15 @@ if __name__ == "__main__":
         constant_properties=constant_properties,
         validation=0.1,
     )
+
+    (
+        model,
+        C_pde_loss_it,
+        C_boundary_loss_it,
+        C_initial_loss_it,
+        C_data_loss_it,
+        val_loss_it,
+    ) = trainer.execute()
 
     with open("learning_curves/C_pde_loss_it__" + pinn_file + ".pkl", "wb") as f:
         pk.dump(C_pde_loss_it.cpu().numpy(), f)
@@ -752,5 +812,5 @@ if __name__ == "__main__":
     print("Speed Up: {} +/-{}".format(mean_speed_up, std_speed_up))
     print("=" * 20 + "\n\n\n")
 
-    with open("edo_pinn_sim/" + pinn_file + ".pkl", "wb") as f:
+    with open("pinn_sim/" + pinn_file + ".pkl", "wb") as f:
         pk.dump(output, f)

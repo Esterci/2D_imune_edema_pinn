@@ -36,7 +36,7 @@ file = "h--0.05__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__l
 
 n_hd_layers = [3, 4]
 
-n_neurons = [2**3, 2**4, 2**5]
+n_neurons = [2 ** 3, 2 ** 4, 2 ** 5]
 
 activation_func = [
     "Elu",
@@ -67,70 +67,68 @@ for n_l in n_hd_layers:
                 "epochs_{}__batch_{}__arch_".format(batch[1], batch[0]) + arch_str
             )
 
-            # if count % 20 == 0:
-            #     add_line("#!/bin/bash", "jobs/pinn_" + str(count // 20) + ".job")
-            #     add_line(
-            #         "#----------------------------------------------------------",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line("# Job name", "jobs/pinn_" + str(count // 20) + ".job")
-            #     add_line(
-            #         "#PBS -N pinn_" + str(count // 20),
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line(
-            #         "#PBS -e error_files/pinn_" + str(count // 20) + ".e",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line(
-            #         "#PBS -o output_files/pinn_" + str(count // 20) + ".o",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line(
-            #         "# Run time (hh:mm:ss) - 3 hrs",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line(
-            #         "#PBS -l walltime=3:00:00", "jobs/pinn_" + str(count // 20) + ".job"
-            #     )
-            #     add_line(
-            #         "#----------------------------------------------------------",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line(
-            #         "#PBS -l nodes=compute-1-1:ppn=1",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line(
-            #         "# Change to submission directory",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
-            #     add_line("cd $PBS_O_WORKDIR", "jobs/pinn_" + str(count // 20) + ".job")
-            #     add_line("cat $PBS_NODEFILE", "jobs/pinn_" + str(count // 20) + ".job")
-            #     add_line(
-            #         "# Launch Thiago-based executable",
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
+            if count % 20 == 0:
+                add_line("#!/bin/bash", "jobs/pinn_" + str(count // 20) + ".job")
+                add_line(
+                    "#----------------------------------------------------------",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line("# Job name", "jobs/pinn_" + str(count // 20) + ".job")
+                add_line(
+                    "#PBS -N pinn_" + str(count // 20),
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line(
+                    "#PBS -e error_files/pinn_" + str(count // 20) + ".e",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line(
+                    "#PBS -o output_files/pinn_" + str(count // 20) + ".o",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line(
+                    "# Run time (hh:mm:ss) - 1:30 hr",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line(
+                    "#PBS -l walltime=1:30:00", "jobs/pinn_" + str(count // 20) + ".job"
+                )
+                add_line(
+                    "#----------------------------------------------------------",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line(
+                    "#PBS -l nodes=compute-1-1:ppn=1",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line(
+                    "# Change to submission directory",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
+                add_line("cd $PBS_O_WORKDIR", "jobs/pinn_" + str(count // 20) + ".job")
+                add_line("cat $PBS_NODEFILE", "jobs/pinn_" + str(count // 20) + ".job")
+                add_line(
+                    "# Launch Thiago-based executable",
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
 
-            #     add_line(
-            #         "export CUDA_VISIBLE_DEVICES=" + v_gpu[count // 20 % len(v_gpu)],
-            #         "jobs/pinn_" + str(count // 20) + ".job",
-            #     )
+                add_line(
+                    "export CUDA_VISIBLE_DEVICES=" + v_gpu[count // 20 % len(v_gpu)],
+                    "jobs/pinn_" + str(count // 20) + ".job",
+                )
 
-            # add_line(
-            #     "time ~/.conda/envs/torch_gpu/bin/python3 edo_pinn_model.py "
-            #     + "-f "
-            #     + file
-            #     + " -n "
-            #     + str(int(batch[1]))
-            #     + " -b "
-            #     + str(int(batch[0]))
-            #     + " -a "
-            #     + arch_str
-            #     + " -g "
-            #     + str(v_gpu[count // 20 % len(v_gpu)]),
-            #     "jobs/pinn_" + str(count // 20) + ".job",
-            # )
+            add_line(
+                "time ~/.conda/envs/torch_gpu/bin/python3 edp_pinn_model.py "
+                + "-f "
+                + file
+                + " -n "
+                + str(int(batch[1]))
+                + " -b "
+                + str(int(batch[0]))
+                + " -a "
+                + arch_str,
+                "jobs/pinn_" + str(count // 20) + ".job",
+            )
 
             count += 1
 
