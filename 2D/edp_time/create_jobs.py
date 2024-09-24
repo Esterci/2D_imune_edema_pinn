@@ -22,19 +22,19 @@ def add_line(line, out):
 
 
 v_gpu = [
-    "MIG-d14ab5f9-ca27-5f8a-bfe1-57e541d0328f",
-    "MIG-03c65507-2388-56b3-a2d9-b30c8b5723ee",
-    "MIG-f184e443-af81-5f32-bad0-527cd20eb031",
-    "MIG-8721230f-e004-50bd-b720-915f56b60dc6",
-    "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
-    "MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
-    "MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
-    "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
+    "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
+    "GPU-49723f5b-3680-6d21-0357-4b7bf88ad0e7",
+    #"MIG-f184e443-af81-5f32-bad0-527cd20eb031",
+    #"MIG-8721230f-e004-50bd-b720-915f56b60dc6",
+    #"MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
+    #"MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
+    #"MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
+    #"MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
 ]
 
 file = "h--0.05__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__Cn_max--0.5__X_nb--0.0001__x_dom_min--0__x_dom_max--1__y_dom_min--0__y_dom_max--1__t_dom_min--0__t_dom_max--10"
 
-n_hd_layers = [3, 4]
+n_hd_layers = [3,4]
 
 n_neurons = [2 ** 3, 2 ** 4, 2 ** 5]
 
@@ -118,7 +118,7 @@ for n_l in n_hd_layers:
                 )
 
             add_line(
-                "time ~/.conda/envs/torch_gpu/bin/python3 edp_pinn_model.py "
+                "time ~/.conda/envs/pyTourch/bin/python3 edp_pinn_model.py "
                 + "-f "
                 + file
                 + " -n "
