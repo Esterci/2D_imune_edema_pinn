@@ -5,7 +5,8 @@ import torch.optim as optim
 import time
 import pickle as pk
 import argparse
-import matplotlib.pyplot as plt
+import glob
+import sys
 
 
 activation_dict = {
@@ -666,6 +667,13 @@ if __name__ == "__main__":
     t_dom_max = param_dict["t_dom_max"]
 
     pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
+
+    # Check if has already run
+
+    pinn_sim_done = list(map(lambda txt: txt.split('/')[-1].split('.')[0],glob.glob("pinn_sim/*")))
+
+    if pinn_file in pinn_sim_done:
+        sys.exit(404)
 
     size_x = int(((x_dom_max - x_dom_min) / (h))) + 1
     size_y = int(((y_dom_max - y_dom_min) / (h))) + 1

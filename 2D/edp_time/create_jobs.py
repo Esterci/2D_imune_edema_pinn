@@ -1,7 +1,4 @@
-import os
-import glob
 from itertools import product
-import numpy as np
 
 
 def add_line(line, out):
