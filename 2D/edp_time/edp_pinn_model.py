@@ -744,8 +744,8 @@ if __name__ == "__main__":
     with open("learning_curves/C_data_loss_it__" + pinn_file + ".pkl", "wb") as f:
         pk.dump(C_data_loss_it.cpu().numpy(), f)
 
-    with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
-        pk.dump(C_initial_loss_it.cpu().numpy(), f)
+    with open("learning_curves/C_boundary_loss_it__" + pinn_file + ".pkl", "wb") as f:
+        pk.dump(C_boundary_loss_it.cpu().numpy(), f)
 
     with open("learning_curves/C_initial_loss_it__" + pinn_file + ".pkl", "wb") as f:
         pk.dump(C_initial_loss_it.cpu().numpy(), f)
@@ -763,6 +763,8 @@ if __name__ == "__main__":
     speed_up = []
 
     mesh = torch.cat([t_tc, x_tc, y_tc], dim=1).to("cpu")
+
+    torch.set_num_threads(1)
 
     for i in range(len(time_fdm)):
 

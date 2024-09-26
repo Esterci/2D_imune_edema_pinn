@@ -1,9 +1,9 @@
 #!/bin/bash
 #----------------------------------------------------------
 # Job name
-#PBS -N pinn_0
-#PBS -e error_files/pinn_0.e
-#PBS -o output_files/pinn_0.o
+#PBS -N check_gpu
+#PBS -e error_files/check_gpu.e
+#PBS -o output_files/check_gpu.o
 # Run time (hh:mm:ss) - 3 hrs
 #PBS -l walltime=3:00:00
 #----------------------------------------------------------
