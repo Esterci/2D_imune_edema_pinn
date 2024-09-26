@@ -23,7 +23,7 @@ def add_line(line, out):
 chunck_size = 20
 
 v_gpu = [
-    # "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
+    "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
     "GPU-49723f5b-3680-6d21-0357-4b7bf88ad0e7",
     #"MIG-f184e443-af81-5f32-bad0-527cd20eb031",
     #"MIG-8721230f-e004-50bd-b720-915f56b60dc6",
@@ -35,11 +35,11 @@ v_gpu = [
 
 file = "h--0.1__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__Cn_max--0.5__X_nb--0.0001__x_dom_min--0__x_dom_max--1__y_dom_min--0__y_dom_max--1__t_dom_min--0__t_dom_max--10"
 
-n_hd_layers = [3]#,4]
+n_hd_layers = [3]
 
 n_neurons = [
-    #2 ** 3, 
-    #2 ** 4, 
+    2 ** 3, 
+    2 ** 4, 
     2 ** 5
     ]
 
@@ -50,7 +50,7 @@ activation_func = [
     "SiLU",
 ]
 
-batch_size = [(1000, 1090)]
+batch_size = [(800, 1090)]
 
 possible_layers = list(product(activation_func, n_neurons))
 

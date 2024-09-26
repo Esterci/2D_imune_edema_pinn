@@ -342,6 +342,8 @@ class train:
         constant_properties,
         norm_weights=None,
         validation=None,
+        tolerance=None,
+        patience=10,
     ):
         self.n_epochs = n_epochs
         self.batch_size = batch_size
@@ -356,13 +358,15 @@ class train:
         self.constant_properties = constant_properties
         self.norm_weights = norm_weights
         self.validation = validation
+        self.tolerance = tolerance
+        self.patience = patience
         pass
 
     def loss_func(
         self,
     ):
         # Computing intial loss
-        t_initial = torch.zeros_like(self.train_t[self.i : self.i + self.batch_size]).to(self.device)
+        t_initial = torch.zeros_like(self.train_t[self.i : self.i + self.batch_size])
 
         mesh_ini = torch.cat(
             [
@@ -499,6 +503,9 @@ class train:
         self.C_initial = initial_condition(self.train_x, self.train_y).to(device)
         val_loss_it = torch.zeros(self.n_epochs).to(device)
 
+        patience_count = 0
+        val_loss = torch.tensor([1000])
+
         for epoch in range(self.n_epochs):
             for self.i in range(0, len(self.train_t), self.batch_size):
 
@@ -511,6 +518,7 @@ class train:
 
             if self.validation:
                 with torch.no_grad():
+                    val_old = val_loss
                     val_loss = self.criterium(
                         self.test_data, model(self.test_data_input)
                     )
@@ -527,6 +535,29 @@ class train:
                     if self.validation
                     else f"Finished epoch {epoch+1}, latest loss {self.loss}"
                 )
+
+            if self.tolerance:
+
+                if (
+                    abs(val_old.item() - val_loss.item()) / val_old.item()
+                    < self.tolerance
+                ):
+                    patience_count += 1
+
+                else:
+                    patience_count = 0
+
+                if patience_count >= self.patience:
+
+                    C_pde_loss_it = C_pde_loss_it[:epoch]
+                    C_boundary_loss_it = C_boundary_loss_it[:epoch]
+                    C_initial_loss_it = C_initial_loss_it[:epoch]
+                    C_data_loss_it = C_data_loss_it[:epoch]
+                    val_loss_it = val_loss_it[:epoch]
+
+                    print("Early break!")
+
+                    break
 
         return (
             model,
@@ -727,6 +758,8 @@ if __name__ == "__main__":
         n_points=batch_size,
         constant_properties=constant_properties,
         validation=0.1,
+        tolerance=0.001,
+        patience=60,
     )
 
     (
