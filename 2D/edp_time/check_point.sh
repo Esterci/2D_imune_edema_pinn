@@ -20,7 +20,7 @@ mv output_files_$d.zip $LOCAL_PINN_GIT
 
 #################
 
-zip -r edo_pinn_sim_$d.zip edo_pinn_sim/ 
+zip -r edo_pinn_sim_$d.zip pinn_sim/ 
 
 mv edo_pinn_sim_$d.zip $LOCAL_PINN_GIT
 

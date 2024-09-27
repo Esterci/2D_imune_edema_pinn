@@ -17,7 +17,7 @@ def add_line(line, out):
         # Append text at the end of file
         file_object.write(line)
 
-chunck_size = 20
+chunck_size = 100
 
 v_gpu = [
     "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
@@ -32,7 +32,7 @@ v_gpu = [
 
 file = "h--0.1__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__Cn_max--0.5__X_nb--0.0001__x_dom_min--0__x_dom_max--1__y_dom_min--0__y_dom_max--1__t_dom_min--0__t_dom_max--10"
 
-n_hd_layers = [3]
+n_hd_layers = [4]
 
 n_neurons = [
     2 ** 3, 
@@ -89,11 +89,11 @@ for n_l in n_hd_layers:
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
                 add_line(
-                    "# Run time (hh:mm:ss) - 3:00 hr",
+                    "# Run time (hh:mm:ss) - 4:00 hr",
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
                 add_line(
-                    "#PBS -l walltime=3:00:00", "jobs/pinn_" + str(count // chunck_size) + ".job"
+                    "#PBS -l walltime=4:00:00", "jobs/pinn_" + str(count // chunck_size) + ".job"
                 )
                 add_line(
                     "#----------------------------------------------------------",
