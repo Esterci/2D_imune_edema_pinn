@@ -1,0 +1,228 @@
+compute-1-1.localdomain
+cuda
+Finished epoch 1, latest loss 0.10449977964162827, validation loss 0.007888806983828545
+Finished epoch 100, latest loss 0.028772875666618347, validation loss 0.0023337327875196934
+Finished epoch 200, latest loss 0.021923499181866646, validation loss 0.0018032318912446499
+Early break!
+Erro absoluto médio 0.04357192
+Erro absoluto máximo 0.25559422
+Speed Up: 65.42591866572258 +/-15.397742486597338
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.3146122694015503, validation loss 0.014668550342321396
+Finished epoch 100, latest loss 0.08214663714170456, validation loss 0.007575761992484331
+Finished epoch 200, latest loss 0.0718155950307846, validation loss 0.006322426721453667
+Early break!
+Erro absoluto médio 0.07080685
+Erro absoluto máximo 0.37748313
+Speed Up: 38.550336992157426 +/-3.9198970575812173
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.09883077442646027, validation loss 0.008915286511182785
+Early break!
+Erro absoluto médio 0.08116036
+Erro absoluto máximo 0.42092305
+Speed Up: 67.18044486309228 +/-14.054888219068706
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.10489170253276825, validation loss 0.00784258171916008
+Finished epoch 100, latest loss 0.0534486249089241, validation loss 0.004149594809859991
+Finished epoch 200, latest loss 0.0412883497774601, validation loss 0.003110135905444622
+Early break!
+Erro absoluto médio 0.058075115
+Erro absoluto máximo 0.3251265
+Speed Up: 55.3532202739852 +/-13.531780041103527
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 1.0650911331176758, validation loss 0.05098423361778259
+Early break!
+Erro absoluto médio 0.07918893
+Erro absoluto máximo 0.42757607
+Speed Up: 68.52310530489697 +/-12.49421679344372
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.093808114528656, validation loss 0.009334009140729904
+Early break!
+Erro absoluto médio 0.07660943
+Erro absoluto máximo 0.43056136
+Speed Up: 73.44082957371337 +/-11.736859882738809
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.10322697460651398, validation loss 0.010504539124667645
+Finished epoch 100, latest loss 0.06552232801914215, validation loss 0.006824937649071217
+Finished epoch 200, latest loss 0.05212730914354324, validation loss 0.0050233895890414715
+Early break!
+Erro absoluto médio 0.06336464
+Erro absoluto máximo 0.35647482
+Speed Up: 63.64281319896445 +/-12.528226756484967
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 1.8066611289978027, validation loss 0.07378954440355301
+Early break!
+Erro absoluto médio 0.07999283
+Erro absoluto máximo 0.42951405
+Speed Up: 60.29995020187421 +/-8.671712059544475
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.0919952243566513, validation loss 0.009067962877452374
+Finished epoch 100, latest loss 0.07985164225101471, validation loss 0.00770708080381155
+Finished epoch 200, latest loss 0.06302809715270996, validation loss 0.005966661963611841
+Finished epoch 300, latest loss 0.05811460316181183, validation loss 0.005400452297180891
+Early break!
+Erro absoluto médio 0.06472709
+Erro absoluto máximo 0.37173527
+Speed Up: 58.48198848582175 +/-7.201616913272334
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.11253305524587631, validation loss 0.008348391391336918
+Early break!
+Erro absoluto médio 0.07739449
+Erro absoluto máximo 0.4300291
+Speed Up: 46.08657855549026 +/-4.006620814138421
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.26764535903930664, validation loss 0.019885415211319923
+Finished epoch 100, latest loss 0.053305067121982574, validation loss 0.005514741409569979
+Finished epoch 200, latest loss 0.0461861826479435, validation loss 0.004668824374675751
+Finished epoch 300, latest loss 0.04246668517589569, validation loss 0.004238337278366089
+Early break!
+Erro absoluto médio 0.057181127
+Erro absoluto máximo 0.34596035
+Speed Up: 71.01425759234664 +/-11.634118228612532
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.1895555853843689, validation loss 0.013746347278356552
+Finished epoch 100, latest loss 0.05732648819684982, validation loss 0.005046793259680271
+Finished epoch 200, latest loss 0.04438108950853348, validation loss 0.0038162777200341225
+Finished epoch 300, latest loss 0.03974870592355728, validation loss 0.003338274545967579
+Early break!
+Erro absoluto médio 0.059716415
+Erro absoluto máximo 0.30439088
+Speed Up: 82.1258787840687 +/-15.989733565813374
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.09804709255695343, validation loss 0.008379860781133175
+Finished epoch 100, latest loss 0.047082673758268356, validation loss 0.0036545328330248594
+Finished epoch 200, latest loss 0.023741981014609337, validation loss 0.0018857915420085192
+Early break!
+Erro absoluto médio 0.043805134
+Erro absoluto máximo 0.2497758
+Speed Up: 72.92154439345867 +/-16.745098074125792
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.7477273344993591, validation loss 0.03339675813913345
+Early break!
+Erro absoluto médio 0.077826224
+Erro absoluto máximo 0.42597806
+Speed Up: 69.38495807775159 +/-11.321871706012562
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.14778108894824982, validation loss 0.010071275755763054
+Finished epoch 100, latest loss 0.06387273222208023, validation loss 0.0064946566708385944
+Finished epoch 200, latest loss 0.04813747480511665, validation loss 0.004647331312298775
+Early break!
+Erro absoluto médio 0.060038827
+Erro absoluto máximo 0.36133626
+Speed Up: 71.72797165565365 +/-15.650813452271313
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.11718863993883133, validation loss 0.009192845784127712
+Finished epoch 100, latest loss 0.08205416053533554, validation loss 0.006961210630834103
+Finished epoch 200, latest loss 0.06354708224534988, validation loss 0.005460768938064575
+Early break!
+Erro absoluto médio 0.06764796
+Erro absoluto máximo 0.38001168
+Speed Up: 65.14225625930666 +/-14.042459876112922
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.1504727005958557, validation loss 0.011867470107972622
+Early break!
+Erro absoluto médio 0.0795833
+Erro absoluto máximo 0.42280567
+Speed Up: 66.51678771631043 +/-9.437896199403772
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.16081523895263672, validation loss 0.008952121250331402
+Finished epoch 100, latest loss 0.06896939873695374, validation loss 0.00604901323094964
+Finished epoch 200, latest loss 0.05747121199965477, validation loss 0.004751960746943951
+Early break!
+Erro absoluto médio 0.06448858
+Erro absoluto máximo 0.35918698
+Speed Up: 68.7488350248627 +/-10.620981262599678
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.13676980137825012, validation loss 0.01126302033662796
+Finished epoch 100, latest loss 0.06420043110847473, validation loss 0.006518455222249031
+Finished epoch 200, latest loss 0.043135855346918106, validation loss 0.0042801424860954285
+Early break!
+Erro absoluto médio 0.060458682
+Erro absoluto máximo 0.3342115
+Speed Up: 57.86259354941522 +/-10.85138311477754
+====================
+
+
+
+cuda
+Finished epoch 1, latest loss 0.8295865654945374, validation loss 0.01833268254995346
+Early break!
+Erro absoluto médio 0.07767614
+Erro absoluto máximo 0.4322481
+Speed Up: 58.624031341241434 +/-8.013024545630007
+====================
+
+
+

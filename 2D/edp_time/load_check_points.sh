@@ -2,7 +2,7 @@
 
 mgc object-storage objects download-all --src=$PINN_BUCKET --dst=$LOCAL_PINN_GIT 
 
-d=1720765952
+d=1727462177
 
 #################
 
