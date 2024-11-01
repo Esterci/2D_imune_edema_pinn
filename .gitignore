@@ -1,2 +1,10 @@
 *.zip
 *.pkl
+*.vtk
+*.pkl
+*.csv
+*.png
+*.job
+*.zip
+*.e
+*.o
