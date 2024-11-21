@@ -1,0 +1,12 @@
+{
+    "phi": 0.2,
+    "ksi": 0.0,
+    "cb": 0.15,
+    "lambd_nb": 1.8,
+    "mi_n": 0.2,
+    "lambd_bn": 0.1,
+    "y_n": 0.1,
+    "Cn_max": 0.55,
+    "central_ini_cond": 0.5,
+    "ini_cond_var": 0.2
+}
