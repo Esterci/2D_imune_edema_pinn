@@ -11,7 +11,7 @@ def cu_fn(Cb, Cn, y_n, Cn_max, lambd_bn, mi_n):
 
 
 @cuda.jit()
-def cu_solve_pde(
+def cu_solve(
     Cb_final,
     Cn_final,
     initial_cond,
