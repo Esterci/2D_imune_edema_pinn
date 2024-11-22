@@ -670,7 +670,9 @@ if __name__ == "__main__":
 
     # Check if has already run
 
-    pinn_sim_done = list(map(lambda txt: txt.split('/')[-1].split('.')[0],glob.glob("pinn_sim/*")))
+    pinn_sim_done = list(
+        map(lambda txt: txt.split("/")[-1].split(".")[0], glob.glob("pinn_sim/*"))
+    )
 
     if pinn_file in pinn_sim_done:
         sys.exit(404)

@@ -17,28 +17,25 @@ def add_line(line, out):
         # Append text at the end of file
         file_object.write(line)
 
+
 chunck_size = 100
 
 v_gpu = [
     "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
     "GPU-49723f5b-3680-6d21-0357-4b7bf88ad0e7",
-    #"MIG-f184e443-af81-5f32-bad0-527cd20eb031",
-    #"MIG-8721230f-e004-50bd-b720-915f56b60dc6",
-    #"MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
-    #"MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
-    #"MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
-    #"MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
+    # "MIG-f184e443-af81-5f32-bad0-527cd20eb031",
+    # "MIG-8721230f-e004-50bd-b720-915f56b60dc6",
+    # "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
+    # "MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
+    # "MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
+    # "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
 ]
 
 file = "h--0.1__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__Cn_max--0.5__X_nb--0.0001__x_dom_min--0__x_dom_max--1__y_dom_min--0__y_dom_max--1__t_dom_min--0__t_dom_max--10"
 
 n_hd_layers = [4]
 
-n_neurons = [
-    2 ** 3, 
-    2 ** 4, 
-    2 ** 5
-    ]
+n_neurons = [2**3, 2**4, 2**5]
 
 activation_func = [
     "Elu",
@@ -70,12 +67,16 @@ for n_l in n_hd_layers:
             )
 
             if count % chunck_size == 0:
-                add_line("#!/bin/bash", "jobs/pinn_" + str(count // chunck_size) + ".job")
+                add_line(
+                    "#!/bin/bash", "jobs/pinn_" + str(count // chunck_size) + ".job"
+                )
                 add_line(
                     "#----------------------------------------------------------",
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
-                add_line("# Job name", "jobs/pinn_" + str(count // chunck_size) + ".job")
+                add_line(
+                    "# Job name", "jobs/pinn_" + str(count // chunck_size) + ".job"
+                )
                 add_line(
                     "#PBS -N pinn_" + str(count // chunck_size),
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
@@ -93,7 +94,8 @@ for n_l in n_hd_layers:
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
                 add_line(
-                    "#PBS -l walltime=4:00:00", "jobs/pinn_" + str(count // chunck_size) + ".job"
+                    "#PBS -l walltime=4:00:00",
+                    "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
                 add_line(
                     "#----------------------------------------------------------",
@@ -107,15 +109,22 @@ for n_l in n_hd_layers:
                     "# Change to submission directory",
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
-                add_line("cd $PBS_O_WORKDIR", "jobs/pinn_" + str(count // chunck_size) + ".job")
-                add_line("cat $PBS_NODEFILE", "jobs/pinn_" + str(count // chunck_size) + ".job")
+                add_line(
+                    "cd $PBS_O_WORKDIR",
+                    "jobs/pinn_" + str(count // chunck_size) + ".job",
+                )
+                add_line(
+                    "cat $PBS_NODEFILE",
+                    "jobs/pinn_" + str(count // chunck_size) + ".job",
+                )
                 add_line(
                     "# Launch Thiago-based executable",
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
 
                 add_line(
-                    "export CUDA_VISIBLE_DEVICES=" + v_gpu[count // chunck_size % len(v_gpu)],
+                    "export CUDA_VISIBLE_DEVICES="
+                    + v_gpu[count // chunck_size % len(v_gpu)],
                     "jobs/pinn_" + str(count // chunck_size) + ".job",
                 )
 

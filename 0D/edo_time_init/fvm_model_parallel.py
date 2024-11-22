@@ -1,5 +1,6 @@
 from numba import cuda
 
+
 @cuda.jit(device=True)
 def cu_fb(Cb, Cn, cb, lambd_nb):
     return (cb - lambd_nb * Cn) * Cb
@@ -23,7 +24,7 @@ def cu_solve(
     lambd_bn,
     mi_n,
     k,
-    phi
+    phi,
 ):
 
     # Domain position

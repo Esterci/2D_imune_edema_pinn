@@ -21,7 +21,7 @@ def solve(
     lambd_bn,
     mi_n,
     k,
-    phi
+    phi,
 ):
 
     for i in range(len(initial_cond)):
