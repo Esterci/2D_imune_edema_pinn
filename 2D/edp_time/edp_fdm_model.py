@@ -8,17 +8,8 @@ import time
 def create_strcut_name(
     h,
     k,
-    Db,
-    Dn,
-    phi,
-    ksi,
-    cb,
-    lambd_nb,
-    mi_n,
-    lambd_bn,
-    y_n,
-    Cn_max,
-    X_nb,
+    center,
+    radius,
     x_dom,
     y_dom,
     t_dom,
@@ -28,28 +19,6 @@ def create_strcut_name(
         + str(h)
         + "__k--"
         + str(k)
-        + "__Db--"
-        + str(Db)
-        + "__Dn--"
-        + str(Dn)
-        + "__phi--"
-        + str(phi)
-        + "__ksi--"
-        + str(ksi)
-        + "__cb--"
-        + str(cb)
-        + "__lambd_nb--"
-        + str(lambd_nb)
-        + "__mi_n--"
-        + str(mi_n)
-        + "__lambd_bn--"
-        + str(lambd_bn)
-        + "__y_n--"
-        + str(y_n)
-        + "__Cn_max--"
-        + str(Cn_max)
-        + "__X_nb--"
-        + str(X_nb)
         + "__x_dom_min--"
         + str(x_dom[0])
         + "__x_dom_max--"
@@ -62,6 +31,12 @@ def create_strcut_name(
         + str(t_dom[0])
         + "__t_dom_max--"
         + str(t_dom[-1])
+        + "__center_x--"
+        + str(center[0])
+        + "__center_y--"
+        + str(center[-1])
+        + "__radius--"
+        + str(radius)
     )
 
 
@@ -236,11 +211,10 @@ if __name__ == "__main__":
     args_dict = vars(args)
 
     h = 0.05
-    k = 0.1
+    k = 0.005
     Db = 0.0001
     Dn = 0.0001
     phi = 0.2
-    ksi = 0.0
     cb = 0.15
     lambd_nb = 1.8
     mi_n = 0.2
@@ -251,6 +225,13 @@ if __name__ == "__main__":
     x_dom = (0, 1)
     y_dom = (0, 1)
     t_dom = (0, 10)
+    center = (np.random.rand(), np.random.rand())
+
+    while True:
+        radius = np.random.rand()
+
+        if radius > 0.1 and radius < 0.5:
+            break
 
     size_x = int(((x_dom[1] - x_dom[0]) / (h))) + 1
     size_y = int(((y_dom[1] - y_dom[0]) / (h))) + 1
@@ -265,15 +246,6 @@ if __name__ == "__main__":
             size_y,
         )
     )
-
-    CFL = (Db * k) / ((2 * (h * h)))
-
-    print("CFL: ", CFL, "\n")
-
-    if CFL >= 1:
-        print("Criterio CFL não satisfeito\n")
-
-        sys.exit(400)
 
     fdm_time = []
 
