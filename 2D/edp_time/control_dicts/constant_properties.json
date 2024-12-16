@@ -8,7 +8,7 @@
     "lambd_bn": 0.1,
     "y_n": 100.0,
     "Cn_max": 0.5,
-    "X_nb": 0.1,
+    "X_nb": 1,
     "central_ini_cond": 0.5,
     "ini_cond_var": 0.1
 }
