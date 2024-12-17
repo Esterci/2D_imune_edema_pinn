@@ -1,14 +1,14 @@
 {
-    "Db": 5e-06,
-    "Dn": 5e-06,
+    "Db": 0.0005,
+    "Dn": 0.0005,
     "phi": 0.2,
-    "cb": 0.15,
+    "cb": 0.0001,
     "lambd_nb": 1.8,
     "mi_n": 0.2,
     "lambd_bn": 0.1,
     "y_n": 0.1,
-    "Cn_max": 5e-08,
-    "X_nb": 0.001,
+    "Cn_max": 0.5,
+    "X_nb": 1,
     "central_ini_cond": 0.5,
-    "ini_cond_var": 0.1
+    "ini_cond_var": 0.2
 }
