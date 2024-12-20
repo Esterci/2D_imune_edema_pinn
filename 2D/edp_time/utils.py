@@ -1,5 +1,7 @@
 import numpy as np
 import pickle as pk
+import time
+
 
 class ProgBar:
     def __init__(self, n_elements, int_str):
@@ -62,6 +64,7 @@ class ProgBar:
 
             sys.stdout.flush()
 
+
 def preencher_matriz_radialmente(tam_max):
     # Cria uma matriz de zeros com as dimensões fornecidas
     matriz = np.zeros((tam_max, tam_max), dtype=int)
@@ -112,7 +115,7 @@ def init_mesh(
     n_ini,
     create_source=False,
     source_type="central",
-    verbose = False,
+    verbose=False,
 ):
     struct_name = (
         "h--"
@@ -135,6 +138,8 @@ def init_mesh(
         + str(center)
         + "__radius--"
         + str(radius)
+        + "__time--"
+        + str(time.time())
     )
 
     print("struct_name: ", struct_name)
@@ -158,7 +163,7 @@ def init_mesh(
         else:
             print("Not implemented type")
             return
-        
+
         with open("source_points/lymph_vessels.pkl", "wb") as f:
             pk.dump(leu_source_points, f)
 

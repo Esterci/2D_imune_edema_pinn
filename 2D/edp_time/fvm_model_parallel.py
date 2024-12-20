@@ -1,5 +1,6 @@
 from numba import cuda
 
+
 # Função que descreve a taxa de variação da concentração de bactérias (Cb)
 @cuda.jit(device=True)
 def cu_fb(Cb, Cn, i, j, cb, lambd_nb):

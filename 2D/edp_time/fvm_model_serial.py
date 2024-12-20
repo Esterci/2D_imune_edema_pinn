@@ -1,4 +1,5 @@
-import numpy as np 
+import numpy as np
+
 
 # Função que descreve a taxa de variação da concentração de bactérias (Cb)
 def fb(Cb, Cn, i, j, cb, lambd_nb):
@@ -221,7 +222,7 @@ def solve_pde(
                 )
             )
             break
-        
+
         elif cfl_dif > 1:
             print(
                 "ERROR - CFL criterium not matched on iteration {} for difusion: {}".format(
