@@ -1,6 +1,5 @@
 from numba import cuda
 
-
 # Função que descreve a taxa de variação da concentração de bactérias (Cb)
 @cuda.jit(device=True)
 def cu_fb(Cb, Cn, i, j, cb, lambd_nb):
@@ -11,12 +10,12 @@ def cu_fb(Cb, Cn, i, j, cb, lambd_nb):
 
 # Função que descreve a taxa de variação da concentração de neutrófilos (Cn)
 @cuda.jit(device=True)
-def cu_fn(Cb, Cn, i, j, y_n, Cn_max, lambd_bn, mi_n):
+def cu_fn(Cb, Cn, source_points, i, j, y_n, Cn_max, lambd_bn, mi_n):
     # Crescimento dos neutrófilos depende da presença de bactérias (Cb)
     # Também considera uma taxa de decaimento natural (mi_n) e a interação com
     # bactérias (lambd_bn)
     return (
-        y_n * Cb[i, j] * (Cn_max - Cn[i, j])
+        y_n * Cb[i, j] * (Cn_max - Cn[i, j]) * source_points[i, j]
         - lambd_bn * Cn[i, j] * Cb[i, j]
         - mi_n * Cn[i, j]
     )
@@ -24,13 +23,12 @@ def cu_fn(Cb, Cn, i, j, y_n, Cn_max, lambd_bn, mi_n):
 
 # Função para aplicar condições iniciais à concentração de bactérias (Cb)
 @cuda.jit(device=True)
-def cu_apply_initial_conditions(Cb, tam_max, h):
-    # Para uma região central do domínio, define uma concentração inicial de bactérias
+def cu_apply_initial_conditions(ini_cond, Cb, cx, cy, radius, tam_max):
     for i in range(tam_max):
         for j in range(tam_max):
-            if (i * h >= 0.4) and (i * h) <= 0.6:
-                if (j * h >= 0.4) and (j * h) <= 0.6:
-                    Cb[i][j] = 0.2
+            # Calculate distance from center to each point
+            if (i - cx) ** 2 + (j - cy) ** 2 <= radius**2:
+                Cb[i][j] = ini_cond  # Set point inside the circle to 1
 
     return Cb
 
@@ -44,6 +42,7 @@ def cu_solve_pde(
     Cn_buf_1,
     Cb_final,
     Cn_final,
+    leu_source_points,
     size_t,
     size_x,
     size_y,
@@ -59,40 +58,24 @@ def cu_solve_pde(
     y_n,
     Cn_max,
     X_nb,
+    initial_cond,
+    center,
+    radius,
 ):
-
-    # Thread id in a 2D block
-    tx = cuda.threadIdx.x
-    ty = cuda.threadIdx.y
-
-    # Block id in a 2D grid
-    bx = cuda.blockIdx.x
-    by = cuda.blockIdx.y
-
-    # Block width, i.e. number of threads per block
-    bwx = cuda.blockDim.x
-    bwy = cuda.blockDim.y
 
     # Domain position
     i, j = cuda.grid(2)
 
-    # print(
-    #     "\nThread ids in a 2D block",
-    #     tx,
-    #     ty,
-    #     "\nBlock ids in a 2D grid",
-    #     bx,
-    #     by,
-    #     "\nBlock width, i.e. number of threads per block",
-    #     bwx,
-    #     bwy,
-    #     "\nDomain position ",
-    #     i,
-    #     j,
-    # )
+    # Aplicando condições iniciais para a concentração de bactérias
+    cx_real, cy_real = center
+    cx_disc = cx_real / h
+    cy_disc = cy_real / h
+    radius_disc = radius / h
 
     # Aplicando condições iniciais para a concentração de bactérias
-    Cb_buf_0 = cu_apply_initial_conditions(Cb_buf_0, size_x, h)
+    Cb_buf_0 = cu_apply_initial_conditions(
+        initial_cond, Cb_buf_0, cx_disc, cy_disc, radius_disc, size_x
+    )
 
     # Armazenando as condições iniciais
     Cb_final[0][i, j] = Cb_buf_0[i, j]
@@ -126,38 +109,38 @@ def cu_solve_pde(
             Cn_new = Cn_buf_1
             Cb_new = Cb_buf_1
 
-        fx_Cb_right = 0 if (i == size_x - 1) else (Cb_old[i + 1, j] - Cb_old[i, j])
+        diff_Cb_right = 0 if (i == size_x - 1) else (Cb_old[i + 1, j] - Cb_old[i, j])
 
-        fx_Cb_left = 0 if (i == 0) else (Cb_old[i, j] - Cb_old[i - 1, j])
+        diff_Cb_left = 0 if (i == 0) else (Cb_old[i, j] - Cb_old[i - 1, j])
 
-        fx_Cb_up = 0 if (j == size_y - 1) else (Cb_old[i, j + 1] - Cb_old[i, j])
+        diff_Cb_up = 0 if (j == size_y - 1) else (Cb_old[i, j + 1] - Cb_old[i, j])
 
-        fx_Cb_down = 0 if (j == 0) else (Cb_old[i, j] - Cb_old[i, j - 1])
+        diff_Cb_down = 0 if (j == 0) else (Cb_old[i, j] - Cb_old[i, j - 1])
 
         # Atualizando as concentrações de bactérias
         Cb_new[i][j] = (
             (k * Db)
             / (h * h * phi)
-            * (fx_Cb_right * fx_Cb_right - fx_Cb_left + fx_Cb_up - fx_Cb_down)
+            * (diff_Cb_right - diff_Cb_left + diff_Cb_up - diff_Cb_down)
             + (k / phi) * cu_fb(Cb_old, Cn_old, i, j, cb, lambd_nb)
             + Cb_old[i, j]
         )
 
-        fx_Cn_right = 0 if i == size_x - 1 else ((Cn_old[i + 1, j] - Cn_old[i, j]))
+        diff_Cn_right = 0 if i == size_x - 1 else ((Cn_old[i + 1, j] - Cn_old[i, j]))
 
-        fx_Cn_left = 0 if i == 0 else ((Cn_old[i, j] - Cn_old[i - 1, j]))
+        diff_Cn_left = 0 if i == 0 else ((Cn_old[i, j] - Cn_old[i - 1, j]))
 
-        fx_Cn_up = 0 if j == size_y - 1 else ((Cn_old[i, j + 1] - Cn_old[i, j]))
+        diff_Cn_up = 0 if j == size_y - 1 else ((Cn_old[i, j + 1] - Cn_old[i, j]))
 
-        fx_Cn_down = 0 if j == 0 else ((Cn_old[i, j] - Cn_old[i, j - 1]))
+        diff_Cn_down = 0 if j == 0 else ((Cn_old[i, j] - Cn_old[i, j - 1]))
 
         adv_right = (
             0
             if i == size_x - 1
             else (
-                (Cn_old[i, j] * fx_Cb_right)
-                if fx_Cb_right > 0
-                else (Cn_old[i + 1, j] * fx_Cb_right)
+                (Cn_old[i, j] * diff_Cb_right)
+                if diff_Cb_right > 0
+                else (Cn_old[i + 1, j] * diff_Cb_right)
             )
         )
 
@@ -165,9 +148,9 @@ def cu_solve_pde(
             0
             if i == 0
             else (
-                (Cn_old[i, j] * fx_Cb_left)
-                if fx_Cb_left > 0
-                else (Cn_old[i - 1, j] * fx_Cb_left)
+                (Cn_old[i, j] * diff_Cb_left)
+                if diff_Cb_left < 0
+                else (Cn_old[i - 1, j] * diff_Cb_left)
             )
         )
 
@@ -175,9 +158,9 @@ def cu_solve_pde(
             0
             if j == size_y - 1
             else (
-                (Cn_old[i, j] * fx_Cb_up)
-                if fx_Cb_up > 0
-                else (Cn_old[i, j + 1] * fx_Cb_up)
+                (Cn_old[i, j] * diff_Cb_up)
+                if diff_Cb_up > 0
+                else (Cn_old[i, j + 1] * diff_Cb_up)
             )
         )
 
@@ -185,9 +168,9 @@ def cu_solve_pde(
             0
             if j == 0
             else (
-                (Cn_old[i, j] * fx_Cb_down)
-                if fx_Cb_down > 0
-                else (Cn_old[i, j - 1] * fx_Cb_down)
+                (Cn_old[i, j] * diff_Cb_down)
+                if diff_Cb_down < 0
+                else (Cn_old[i, j - 1] * diff_Cb_down)
             )
         )
 
@@ -195,9 +178,12 @@ def cu_solve_pde(
         Cn_new[i][j] = (
             (k * Dn)
             / (h * h * phi)
-            * (fx_Cn_right - fx_Cn_left + fx_Cn_up - fx_Cn_down)
+            * (diff_Cn_right - diff_Cn_left + diff_Cn_up - diff_Cn_down)
             - (X_nb * k) / (h * h * phi) * (adv_right - adv_left + adv_up - adv_down)
-            + (k / phi) * cu_fn(Cb_old, Cn_old, i, j, y_n, Cn_max, lambd_bn, mi_n)
+            + (k / phi)
+            * cu_fn(
+                Cb_old, Cn_old, leu_source_points, i, j, y_n, Cn_max, lambd_bn, mi_n
+            )
             + Cn_old[i, j]
         )
 
