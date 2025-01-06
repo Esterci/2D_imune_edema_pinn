@@ -55,7 +55,7 @@ size_x, size_y, size_t, initial_cond, leu_source_points, struct_name = init_mesh
     radius,
     central_ini_cond,
     ini_cond_var,
-    33,
+    10,
     create_source=False,
     source_type="central",
 )
@@ -69,7 +69,7 @@ Cb_init = np.zeros((len(initial_cond), size_t, size_x, size_y))
 Cn_init = np.zeros((len(initial_cond), size_t, size_x, size_y))
 
 # Solve PDE for each initial condition in serial mode
-for ini_index in range(len(initial_cond)):
+for ini_index in range(33):
 
     Cb, Cn = solve_pde(
         leu_source_points,
