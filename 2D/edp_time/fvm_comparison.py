@@ -55,7 +55,7 @@ size_x, size_y, size_t, initial_cond, leu_source_points, struct_name = init_mesh
     radius,
     central_ini_cond,
     ini_cond_var,
-    1,
+    33,
     create_source=False,
     source_type="central",
 )
@@ -180,4 +180,11 @@ print(f"Speed-up for iteration: {speed_up:.2f}x")
 
 # Save speed-up
 with open("fvm_sim/speed_up__" + struct_name + ".pkl", "wb") as f:
-    pk.dump(speed_up, f)
+    pk.dump(
+        {
+            "speed_up": speed_up,
+            "cuda_time": cuda_time,
+            "serial_time": serial_time,
+        },
+        f,
+    )
