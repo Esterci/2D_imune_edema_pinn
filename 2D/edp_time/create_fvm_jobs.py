@@ -43,11 +43,11 @@ add_line(
     "jobs/fvm_comp.job",
 )
 add_line(
-    "# Run time (hh:mm:ss) - 10:00 hr",
+    "# Run time (hh:mm:ss) - 600:00 hr",
     "jobs/fvm_comp.job",
 )
 add_line(
-    "#PBS -l walltime=10:00:00",
+    "#PBS -l walltime=600:00:00",
     "jobs/fvm_comp.job",
 )
 add_line(
@@ -103,4 +103,10 @@ for i in range(33):
             + " & time ~/.conda/envs/torch-numba/bin/python3 fvm_comparison.py;",
             "jobs/fvm_comp.job",
             False,
+        )
+
+        add_line(
+            "echo 'Iteration " + str(i) + " and " + str(i + 1) + "'",
+            "jobs/fvm_comp.job",
+            True,
         )

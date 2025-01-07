@@ -69,7 +69,7 @@ Cb_init = np.zeros((len(initial_cond), size_t, size_x, size_y))
 Cn_init = np.zeros((len(initial_cond), size_t, size_x, size_y))
 
 # Solve PDE for each initial condition in serial mode
-for ini_index in range(33):
+for ini_index in range(len(initial_cond)):
 
     Cb, Cn = solve_pde(
         leu_source_points,
