@@ -94,8 +94,8 @@ for ini_index in range(len(initial_cond)):
         verbose=False,
     )
 
-    Cb_init[ini_index, :, :] = Cb
-    Cn_init[ini_index, :, :] = Cn
+    Cb_init[ini_index, :, :, :] = Cb
+    Cn_init[ini_index, :, :, :] = Cn
 
 end = time.time()
 
