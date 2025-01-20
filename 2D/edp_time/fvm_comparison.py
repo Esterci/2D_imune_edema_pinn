@@ -55,7 +55,7 @@ size_x, size_y, size_t, initial_cond, leu_source_points, struct_name = init_mesh
     radius,
     central_ini_cond,
     ini_cond_var,
-    10,
+    2,
     create_source=False,
     source_type="central",
 )
@@ -172,6 +172,7 @@ for ini_cond in initial_cond:
 end = time.time()
 
 cuda_time = end - start
+
 print(f"CUDA computation time for iteration: {cuda_time:.2f} seconds.")
 
 # Compute speed-up factor and store it
@@ -188,3 +189,4 @@ with open("fvm_sim/speed_up__" + struct_name + ".pkl", "wb") as f:
         },
         f,
     )
+    
