@@ -8,3 +8,4 @@
 *.zip
 *.e
 *.o
+/2D/edp_time/__pycache__
