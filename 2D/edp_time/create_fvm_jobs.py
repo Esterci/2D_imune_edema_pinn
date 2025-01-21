@@ -19,8 +19,8 @@ def add_line(line, out, line_break=True):
 
 
 v_gpu = [
-    "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
-    "GPU-49723f5b-3680-6d21-0357-4b7bf88ad0e7",
+    "GPU-8c36d9dd-4315-583f-c95d-c0e7575f3433",
+    "GPU-3abe7f07-d793-14fa-a218-bf805e641e63",
 ]
 
 

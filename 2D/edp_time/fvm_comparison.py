@@ -189,4 +189,3 @@ with open("fvm_sim/speed_up__" + struct_name + ".pkl", "wb") as f:
         },
         f,
     )
-    
