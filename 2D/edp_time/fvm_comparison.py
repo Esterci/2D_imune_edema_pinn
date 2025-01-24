@@ -55,7 +55,7 @@ size_x, size_y, size_t, initial_cond, leu_source_points, struct_name = init_mesh
     radius,
     central_ini_cond,
     ini_cond_var,
-    1,
+    10,
     create_source=False,
     source_type="central",
 )
@@ -94,8 +94,8 @@ for ini_index in range(len(initial_cond)):
         verbose=False,
     )
 
-    Cb_init[ini_index, :, :, :] = Cb
-    Cn_init[ini_index, :, :, :] = Cn
+    Cb_init[ini_index, :, :] = Cb
+    Cn_init[ini_index, :, :] = Cn
 
 end = time.time()
 
@@ -118,7 +118,64 @@ blockspergrid = (blockspergrid_x, blockspergrid_y)
 
 start = time.time()
 
-# Solve PDE using CUDA
+# Compile CUDA executable and solve PDE using CUDA
+for ini_cond in initial_cond:
+
+    # Initialize device arrays for concentrations and sources
+    Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
+    Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
+    device_leu_source = cuda.to_device(leu_source_points)
+
+    # Additional buffers for synchronization
+    Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
+    Cn_buf_1 = cuda.device_array_like(Cn_buf_0)
+
+    # Arrays to store results for each time step
+    Cb_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
+    Cn_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
+
+    cu_solve_pde[threadsperblock, blockspergrid](
+        Cb_buf_0,
+        Cn_buf_0,
+        Cb_buf_1,
+        Cn_buf_1,
+        Cb_final_device,
+        Cn_final_device,
+        device_leu_source,
+        size_t,
+        size_x,
+        size_y,
+        h,
+        k,
+        Db,
+        Dn,
+        phi,
+        cb,
+        lambd_nb,
+        mi_n,
+        lambd_bn,
+        y_n,
+        Cn_max,
+        X_nb,
+        ini_cond,
+        center,
+        radius,
+    )
+
+    # Copy results back to the host
+    Cb_host = np.empty(shape=Cb_final_device.shape, dtype=Cb_final_device.dtype)
+    Cb_final_device.copy_to_host(Cb_host)
+
+    Cn_host = np.empty(shape=Cn_final_device.shape, dtype=Cn_final_device.dtype)
+    Cn_final_device.copy_to_host(Cn_host)
+
+end = time.time()
+
+cuda_comp_time = end - start
+
+start = time.time()
+
+# Compile CUDA executable and solve PDE using CUDA
 for ini_cond in initial_cond:
 
     # Initialize device arrays for concentrations and sources
@@ -173,17 +230,22 @@ end = time.time()
 
 cuda_time = end - start
 
+print(f"CUDA computation time with compilation for iteration: {cuda_comp_time:.2f} seconds.")
 print(f"CUDA computation time for iteration: {cuda_time:.2f} seconds.")
 
 # Compute speed-up factor and store it
+speed_comp_up = serial_time / cuda_comp_time
 speed_up = serial_time / cuda_time
+print(f"Speed-up with compilation for iteration: {speed_comp_up:.2f}x")
 print(f"Speed-up for iteration: {speed_up:.2f}x")
 
 # Save speed-up
 with open("fvm_sim/speed_up__" + struct_name + ".pkl", "wb") as f:
     pk.dump(
         {
+            "speed_comp_up": speed_comp_up,
             "speed_up": speed_up,
+            "cuda_comp_time": cuda_comp_time,
             "cuda_time": cuda_time,
             "serial_time": serial_time,
         },
