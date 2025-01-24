@@ -19,8 +19,8 @@ def add_line(line, out, line_break=True):
 
 
 v_gpu = [
-    "GPU-8c36d9dd-4315-583f-c95d-c0e7575f3433",
-    "GPU-3abe7f07-d793-14fa-a218-bf805e641e63",
+    "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
+    "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
 ]
 
 
@@ -77,9 +77,9 @@ add_line(
 
 count = 0
 
-for i in range(1):
+for i in range(2):
 
-    if i % 2 == 0 and i != 32:
+    if i % 2 == 0 and i != 1:
         add_line(
             "export CUDA_VISIBLE_DEVICES="
             + v_gpu[i % len(v_gpu)]
@@ -87,7 +87,7 @@ for i in range(1):
             "jobs/fvm_comp.job",
         )
 
-    elif i == 32:
+    elif i == 1:
         add_line(
             "export CUDA_VISIBLE_DEVICES="
             + v_gpu[i % len(v_gpu)]

@@ -55,7 +55,7 @@ size_x, size_y, size_t, initial_cond, leu_source_points, struct_name = init_mesh
     radius,
     central_ini_cond,
     ini_cond_var,
-    10,
+    1,
     create_source=False,
     source_type="central",
 )
