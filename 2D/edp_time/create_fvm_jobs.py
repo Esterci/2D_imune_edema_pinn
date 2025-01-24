@@ -55,7 +55,7 @@ add_line(
     "jobs/fvm_comp.job",
 )
 add_line(
-    "#PBS -l nodes=compute-1-1:ppn=128",
+    "#PBS -l nodes=compute-1-1:ppn=2",
     "jobs/fvm_comp.job",
 )
 add_line(
@@ -77,7 +77,7 @@ add_line(
 
 count = 0
 
-for i in range(33):
+for i in range(1):
 
     if i % 2 == 0 and i != 32:
         add_line(
