@@ -111,7 +111,7 @@ with open(f"fvm_sim/Cl__{struct_name}.pkl", "wb") as f:
     pk.dump(Cn_init, f)
 
 # Define CUDA threads and blocks
-threadsperblock = (size_x, size_y)
+threadsperblock = (int(size_x / 2), int(size_y / 2))
 blockspergrid_x = math.ceil(size_x / threadsperblock[0])
 blockspergrid_y = math.ceil(size_y / threadsperblock[1])
 blockspergrid = (blockspergrid_x, blockspergrid_y)
@@ -230,7 +230,9 @@ end = time.time()
 
 cuda_time = end - start
 
-print(f"CUDA computation time with compilation for iteration: {cuda_comp_time:.2f} seconds.")
+print(
+    f"CUDA computation time with compilation for iteration: {cuda_comp_time:.2f} seconds."
+)
 print(f"CUDA computation time for iteration: {cuda_time:.2f} seconds.")
 
 # Compute speed-up factor and store it

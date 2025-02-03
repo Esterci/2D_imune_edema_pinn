@@ -1,10 +1,11 @@
 d=$(date +%s)
 
+
 #################
 
-zip -r jobs_$d.zip jobs/ 
+zip -r control_dicts_$d.zip control_dicts/ 
 
-mv jobs_$d.zip $LOCAL_PINN_GIT
+mv control_dicts_$d.zip $LOCAL_PINN_GIT
 
 #################
 
@@ -14,21 +15,52 @@ mv error_files_$d.zip $LOCAL_PINN_GIT
 
 #################
 
-zip -r output_files_$d.zip output_files/ 
+zip -r fdm_sim_$d.zip fdm_sim/ 
 
-mv output_files_$d.zip $LOCAL_PINN_GIT
+mv fdm_sim_$d.zip $LOCAL_PINN_GIT
 
 #################
 
-zip -r edo_pinn_sim_$d.zip pinn_sim/ 
+zip -r fvm_sim_$d.zip fvm_sim/ 
 
-mv edo_pinn_sim_$d.zip $LOCAL_PINN_GIT
+mv fvm_sim_$d.zip $LOCAL_PINN_GIT
+
+#################
+
+zip -r jobs_$d.zip jobs/ 
+
+mv jobs_$d.zip $LOCAL_PINN_GIT
+
 
 #################
 
 zip -r learning_curves_$d.zip learning_curves/ 
 
 mv learning_curves_$d.zip $LOCAL_PINN_GIT
+
+#################
+
+zip -r nn_parameters_$d.zip nn_parameters/ 
+
+mv nn_parameters_$d.zip $LOCAL_PINN_GIT
+
+#################
+
+zip -r output_files_$d.zip output_files/ 
+
+mv output_files_$d.zip $LOCAL_PINN_GIT
+
+#################
+
+zip -r pinn_sim_$d.zip pinn_sim/ 
+
+mv pinn_sim_$d.zip $LOCAL_PINN_GIT
+
+#################
+
+zip -r source_points_$d.zip source_points/ 
+
+mv source_points_$d.zip $LOCAL_PINN_GIT
 
 # Sending files to bucket 
 
