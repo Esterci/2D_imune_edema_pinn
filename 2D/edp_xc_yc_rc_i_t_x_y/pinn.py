@@ -2,10 +2,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import time
 import pickle as pk
 import matplotlib.pyplot as plt
-import json
 from glob import glob
 
 activation_dict = {
@@ -23,8 +21,6 @@ activation_dict = {
     "SiLU": nn.SiLU,
     "GLU": nn.GLU,
 }
-
-arch_str = "Tanh--32__Tanh--32__Tanh--32__Tanh--32"
 
 
 def get_infection_site(struct_name):
@@ -973,8 +969,11 @@ class train:
             for bt, self.i in enumerate(range(0, len(self.x_train), self.batch_size)):
 
                 self.optimizer.step(self.loss_func)
+                
+                break
 
             self.lr_scheduler.step()
+            
 
             # Computing validation loss
 
@@ -1019,7 +1018,6 @@ class train:
 
                     print("Early break!")
 
-                    break
 
         return (
             self.model,
