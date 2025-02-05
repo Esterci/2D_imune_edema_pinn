@@ -15,17 +15,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-f",
-        "--file",
-        type=str,
-        action="store",
-        dest="file",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
         "-n",
         "--n_epochs",
         type=int,
@@ -62,7 +51,6 @@ if __name__ == "__main__":
 
     args_dict = vars(args)
 
-    struct_name = args_dict["file"]
     n_epochs = args_dict["n_epochs"]
     batch_size = args_dict["batch_size"]
     arch_str = args_dict["arch_str"]

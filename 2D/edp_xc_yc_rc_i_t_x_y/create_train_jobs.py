@@ -26,8 +26,7 @@ node = "nodes=compute-1-0"
 os.system("rm jobs/pinn_*")
 
 v_gpu = [
-    "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
-    "GPU-49723f5b-3680-6d21-0357-4b7bf88ad0e7",
+    "GPU-8c36d9dd-4315-583f-c95d-c0e7575f3433",
     # "MIG-f184e443-af81-5f32-bad0-527cd20eb031",
     # "MIG-8721230f-e004-50bd-b720-915f56b60dc6",
     # "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
@@ -134,7 +133,7 @@ for n_l in n_hd_layers:
                 )
 
             add_line(
-                "time ~/.conda/envs/pyTourch/bin/python3 edp_pinn_model.py "
+                "time ~/.conda/envs/pyTourch/bin/python3 pinn_train.py "
                 + " -n "
                 + str(int(batch[1]))
                 + " -b "
