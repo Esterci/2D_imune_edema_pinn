@@ -24,8 +24,6 @@ activation_dict = {
     "GLU": nn.GLU,
 }
 
-arch_str = "Tanh--32__Tanh--32__Tanh--32__Tanh--32"
-
 
 def get_infection_site(struct_name):
 
@@ -59,6 +57,26 @@ def read_files(path):
             speed_up_list.append(file)
 
     return Cn_list, Cb_list, speed_up_list
+
+
+def change_dim_order(np_array):
+    # (2, 2, 100001, 21, 21)
+    sim_shape = np_array.shape
+
+    form_array = np.zeros(
+        (
+            sim_shape[2],
+            sim_shape[0],
+            sim_shape[1],
+            sim_shape[3],
+            sim_shape[4],
+        )
+    )
+
+    for i in range(sim_shape[2]):
+        form_array[i, :, :, :, :] = np_array[:, :, i, :, :]
+
+    return form_array
 
 
 def format_array(Cb_list, Cn_list):
@@ -98,6 +116,26 @@ def format_array(Cb_list, Cn_list):
         radius_array[i] = radius
 
     return Cb, Cn, center_x, center_y, radius_array
+
+
+def simplify_mx(mx):
+    return mx[0,0,:,:,:]
+
+
+def under_sampling(n_samples, mx):
+
+    choosen_points = np.linspace(
+        0, mx.shape[2], num=n_samples, endpoint=False, dtype=int
+    )
+
+    reduced_mx = np.zeros(
+        (mx.shape[0], mx.shape[1], n_samples, mx.shape[3], mx.shape[4])
+    )
+
+    for i, idx in enumerate(choosen_points):
+        reduced_mx[:, :, i, :, :] = mx[:, :, idx, :, :]
+
+    return reduced_mx
 
 
 def get_mesh_properties(
@@ -143,46 +181,24 @@ def create_input_mesh(
     size_t,
     size_x,
     size_y,
-    center_x_array,
-    center_y_array,
-    initial_cond,
-    radius_array,
 ):
+    
     t_np = np.linspace(t_dom[0], t_dom[1], num=size_t, endpoint=False, dtype=np.float32)
     x_np = np.linspace(x_dom[0], x_dom[1], num=size_x, endpoint=False, dtype=np.float32)
     y_np = np.linspace(y_dom[0], y_dom[1], num=size_y, endpoint=False, dtype=np.float32)
-    infection_idx = np.linspace(
-        0, len(center_x_array), num=len(center_x_array), endpoint=False, dtype=np.int32
-    )
 
     # Change first with second dimension for np.meshgrid match with
     # torch.mashgrid and C flattening logic
 
-    initial_mesh, infection_mesh, t_mesh, x_mesh, y_mesh = np.meshgrid(
-        initial_cond, infection_idx, t_np, x_np, y_np
-    )
-
-    center_x_mesh = np.zeros(infection_mesh.ravel().shape)
-    center_y_mesh = np.zeros(infection_mesh.ravel().shape)
-    radius_mesh = np.zeros(infection_mesh.ravel().shape)
-
-    for i, idx in enumerate(infection_mesh.ravel()):
-
-        center_x_mesh[i] = center_x_array[idx]
-        center_y_mesh[i] = center_y_array[idx]
-        radius_mesh[i] = radius_array[idx]
+    x_mesh, t_mesh, y_mesh = np.meshgrid(x_np, t_np, y_np)
 
     return (
-        initial_mesh,
-        center_x_mesh,
-        center_y_mesh,
-        radius_mesh,
         t_mesh,
         x_mesh,
         y_mesh,
     )
-
-
+    
+    
 def allocates_training_mesh(
     t_dom,
     x_dom,
@@ -199,10 +215,6 @@ def allocates_training_mesh(
 ):
 
     (
-        initial_mesh,
-        center_x_mesh,
-        center_y_mesh,
-        radius_mesh,
         t_mesh,
         x_mesh,
         y_mesh,
@@ -213,10 +225,6 @@ def allocates_training_mesh(
         size_t,
         size_x,
         size_y,
-        center_x_array,
-        center_y_array,
-        initial_cond,
-        radius_array,
     )
 
     if torch.cuda.is_available():
@@ -228,34 +236,46 @@ def allocates_training_mesh(
     print("device:", device)
 
     initial_tc = (
-        torch.tensor(initial_mesh, dtype=torch.float16)
+        torch.tensor(initial_cond[0], dtype=torch.float16)
         .reshape(-1, 1)
         .requires_grad_(True)
     )
 
     center_x_tc = (
-        torch.tensor(center_x_mesh, dtype=torch.float32)
+        torch.tensor(center_x_array[0], dtype=torch.float32)
         .reshape(-1, 1)
         .requires_grad_(True)
     )
 
     center_y_tc = (
-        torch.tensor(center_y_mesh, dtype=torch.float32)
+        torch.tensor(center_y_array[0], dtype=torch.float32)
         .reshape(-1, 1)
         .requires_grad_(True)
     )
 
     radius_tc = (
-        torch.tensor(radius_mesh, dtype=torch.float32)
+        torch.tensor(radius_array[0], dtype=torch.float32)
         .reshape(-1, 1)
         .requires_grad_(True)
     )
 
-    t_tc = torch.tensor(t_mesh, dtype=torch.float32).reshape(-1, 1).requires_grad_(True)
+    t_tc = (
+        torch.tensor(t_mesh, dtype=torch.float32)
+        .reshape(-1, 1)
+        .requires_grad_(True)
+    )
 
-    x_tc = torch.tensor(x_mesh, dtype=torch.float32).reshape(-1, 1).requires_grad_(True)
+    x_tc = (
+        torch.tensor(x_mesh, dtype=torch.float32)
+        .reshape(-1, 1)
+        .requires_grad_(True)
+    )
 
-    y_tc = torch.tensor(y_mesh, dtype=torch.float32).reshape(-1, 1).requires_grad_(True)
+    y_tc = (
+        torch.tensor(y_mesh, dtype=torch.float32)
+        .reshape(-1, 1)
+        .requires_grad_(True)
+    )
 
     target = torch.tensor(
         np.hstack((Cn_fvm.reshape(-1, 1), Cb_fvm.reshape(-1, 1))), dtype=torch.float32
@@ -272,7 +292,7 @@ def allocates_training_mesh(
         target,
         device,
     )
-
+    
 
 def generate_model(arch_str):
     hidden_layers = arch_str.split("__")
@@ -286,11 +306,11 @@ def generate_model(arch_str):
             if len(modules) == 0:
                 if activation == "Linear":
                     modules.append(
-                        activation_dict[activation](7, int(out_neurons)).float()
+                        activation_dict[activation](3, int(out_neurons)).float()
                     )
 
                 else:
-                    modules.append(nn.Linear(7, int(out_neurons)).float())
+                    modules.append(nn.Linear(3, int(out_neurons)).float())
                     modules.append(activation_dict[activation]().float())
 
             else:
@@ -344,27 +364,19 @@ def rescale(dataset, dt_min, dt_max):
     return (dt_max - dt_min) * dataset + dt_min
 
 
-def shuffle_data(center_x, center_y, radius, initial, t, x, y, target):
+def shuffle_data(t, x, y, target):
     Data_num = np.arange(x.shape[0])
     np.random.shuffle(Data_num)
 
     return (
-        center_x[Data_num],
-        center_y[Data_num],
-        radius[Data_num],
-        initial[Data_num],
         t[Data_num],
         x[Data_num],
         y[Data_num],
         target[Data_num],
     )
-
-
+    
+    
 def train_test_split(
-    center_x,
-    center_y,
-    radius,
-    initial,
     t,
     x,
     y,
@@ -375,35 +387,15 @@ def train_test_split(
 ):
     with torch.no_grad():
         if shuffle:
-            center_x, center_y, radius, initial, t, x, y, target = shuffle_data(
-                center_x, center_y, radius, initial, t, x, y, target
-            )
+            t, x, y, target = shuffle_data(t, x, y, target)
 
         if test_size < 1:
             train_ratio = len(x) - int(len(x) * test_size)
-            center_x_train, center_x_test = (
-                center_x[:train_ratio],
-                center_x[train_ratio:],
-            )
-            center_y_train, center_y_test = (
-                center_y[:train_ratio],
-                center_y[train_ratio:],
-            )
-            radius_train, radius_test = radius[:train_ratio], radius[train_ratio:]
-            initial_train, initial_test = initial[:train_ratio], initial[train_ratio:]
             t_train, t_test = t[:train_ratio], t[train_ratio:]
             x_train, x_test = x[:train_ratio], x[train_ratio:]
             y_train, y_test = y[:train_ratio], y[train_ratio:]
             target_train, target_test = target[:train_ratio], target[train_ratio:]
             return (
-                center_x_train.requires_grad_(True).to(device),
-                center_x_test.requires_grad_(True).to(device),
-                center_y_train.requires_grad_(True).to(device),
-                center_y_test.requires_grad_(True).to(device),
-                radius_train.requires_grad_(True).to(device),
-                radius_test.requires_grad_(True).to(device),
-                initial_train.requires_grad_(True).to(device),
-                initial_test.requires_grad_(True).to(device),
                 t_train.requires_grad_(True).to(device),
                 t_test.requires_grad_(True).to(device),
                 x_train.requires_grad_(True).to(device),
@@ -414,29 +406,11 @@ def train_test_split(
                 target_test.requires_grad_(True).to(device),
             )
         elif test_size in range(1, len(x)):
-            center_x_train, center_x_test = (
-                center_x[test_size:],
-                center_x[:test_size],
-            )
-            center_y_train, center_y_test = (
-                center_y[test_size:],
-                center_y[:test_size],
-            )
-            radius_train, radius_test = radius[test_size:], radius[:test_size]
-            initial_train, initial_test = initial[test_size:], initial[:test_size]
             t_train, t_test = t[test_size:], t[:test_size]
             x_train, x_test = x[test_size:], x[:test_size]
             y_train, y_test = y[test_size:], y[:test_size]
             target_train, target_test = target[test_size:], target[:test_size]
             return (
-                center_x_train.requires_grad_(True).to(device),
-                center_x_test.requires_grad_(True).to(device),
-                center_y_train.requires_grad_(True).to(device),
-                center_y_test.requires_grad_(True).to(device),
-                radius_train.requires_grad_(True).to(device),
-                radius_test.requires_grad_(True).to(device),
-                initial_train.requires_grad_(True).to(device),
-                initial_test.requires_grad_(True).to(device),
                 t_train.requires_grad_(True).to(device),
                 t_test.requires_grad_(True).to(device),
                 x_train.requires_grad_(True).to(device),
@@ -446,49 +420,20 @@ def train_test_split(
                 target_train.requires_grad_(True).to(device),
                 target_test.requires_grad_(True).to(device),
             )
-
-
+            
+    
 def generate_training_points(num_points, device):
-    center_x = torch.rand(num_points, 1, dtype=torch.float32)
-    center_y = torch.rand(num_points, 1, dtype=torch.float32)
-    radius = torch.rand(num_points, 1, dtype=torch.float32) * (0.2 - 0.1) + 0.1
-    initial = torch.rand(num_points, 1, dtype=torch.float32) * (0.6 - 0.4) + 0.4
     t = torch.rand(num_points, 1, dtype=torch.float32) * 10
     x = torch.rand(num_points, 1, dtype=torch.float32)
     y = torch.rand(num_points, 1, dtype=torch.float32)
 
     return (
-        center_x.requires_grad_(True).to(device),
-        center_y.requires_grad_(True).to(device),
-        radius.requires_grad_(True).to(device),
-        initial.requires_grad_(True).to(device),
         t.requires_grad_(True).to(device),
         x.requires_grad_(True).to(device),
         y.requires_grad_(True).to(device),
     )
-
-
-def generate_boundary_points(num_points, device):
-    x_boundary = torch.tensor([0.0, 1], dtype=torch.float32).repeat(num_points // 2, 1)
-    y_boundary = torch.rand(num_points, dtype=torch.float32)
-
-    if torch.rand(1) > 0.5:
-        x_boundary, y_boundary = y_boundary, x_boundary
-        n = torch.tensor([[0.0, -1.0], [0.0, 1.0]], dtype=torch.float32).repeat(
-            num_points // 2, 1
-        )
-    else:
-        n = torch.tensor([[-1.0, 0.0], [1.0, 0.0]], dtype=torch.float32).repeat(
-            num_points // 2, 1
-        )
-
-    return (
-        x_boundary.view(-1, 1).requires_grad_(True).to(device),
-        y_boundary.view(-1, 1).requires_grad_(True).to(device),
-        n.requires_grad_(True).to(device),
-    )
-
-
+    
+    
 def generate_boundary_points(num_points, device):
     x_boundary = torch.tensor([0.0, 1], dtype=torch.float32).repeat(num_points // 2, 1)
     y_boundary = torch.rand(num_points, dtype=torch.float32)
@@ -509,16 +454,14 @@ def generate_boundary_points(num_points, device):
         y_boundary.view(-1, 1).requires_grad_(True).to(device),
         n.requires_grad_(True).to(device),
     )
+    
+    
+def initial_condition_points(
+    data_input, center_x_tc, center_y_tc, radius_tc, initial_tc
+):
 
-
-def initial_condition_points(data_input):
-
-    center_x_tc= data_input[:,1]
-    center_y_tc= data_input[:,2]
-    radius_tc= data_input[:,3]
-    initial_tc = data_input[:,0]
-    x_tc= data_input[:,5]
-    y_tc= data_input[:,6]
+    x_tc = data_input[:, 1]
+    y_tc = data_input[:, 2]
 
     # Calculate squared distances from each point to the circle centers
     squared_distances = (x_tc - center_x_tc) ** 2 + (y_tc - center_y_tc) ** 2
@@ -527,23 +470,19 @@ def initial_condition_points(data_input):
     inside_circle_mask = squared_distances <= radius_tc**2
 
     # Initialize the tensor and set the values for points inside the circle
-    C_init = torch.zeros((len(x_tc), 2),dtype=torch.float32)
+    C_init = torch.zeros((len(x_tc), 2), dtype=torch.float32)
     C_init[:, 1] = inside_circle_mask.ravel() * initial_tc.ravel()
 
     return C_init
 
 
 def boundary_condition(
-    model, device, center_x, center_y, radius, initial, t_b, x_b, y_b, n, Dn, X_nb, Db
+    model, device, t_b, x_b, y_b, n, Dn, X_nb, Db
 ):
 
     input_boundary = (
         torch.cat(
             [
-                center_x,
-                center_y,
-                radius,
-                initial,
                 t_b,
                 x_b,
                 y_b,
@@ -609,12 +548,9 @@ def boundary_condition(
 
         return torch.cat([Cl_boundary, Cp_boundary], dim=1)
     
+    
 def pde(
     model,
-    center_x,
-    center_y,
-    radius,
-    initial,
     t,
     x,
     y,
@@ -632,10 +568,6 @@ def pde(
     Cl, Cp = model(
         torch.cat(
             [
-                center_x,
-                center_y,
-                radius,
-                initial,
                 t,
                 x,
                 y,
@@ -762,6 +694,10 @@ class train:
         self.batch_size = batch_size
         self.decay_rate = decay_rate
         self.model = model.to(device)
+        self.center_x_tc = center_x_tc.to(device)
+        self.center_y_tc = center_y_tc.to(device)
+        self.radius_tc = radius_tc.to(device)
+        self.initial_tc = initial_tc.to(device)
         self.device = device
         self.n_points = n_points
         self.constant_properties = constant_properties
@@ -772,14 +708,6 @@ class train:
 
         if self.validation:
             (
-                self.center_x_train,
-                self.center_x_test,
-                self.center_y_train,
-                self.center_y_test,
-                self.radius_train,
-                self.radius_test,
-                self.initial_train,
-                self.initial_test,
                 self.t_train,
                 self.t_test,
                 self.x_train,
@@ -789,10 +717,6 @@ class train:
                 self.target_train,
                 self.target_test,
             ) = train_test_split(
-                center_x_tc,
-                center_y_tc,
-                radius_tc,
-                initial_tc,
                 t_tc,
                 x_tc,
                 y_tc,
@@ -802,14 +726,6 @@ class train:
             )
 
         else:
-            self.center_x_train = center_x_tc.to(device)
-            self.center_x_test = None
-            self.center_y_train = center_y_tc.to(device)
-            self.center_y_test = None
-            self.radius_train = radius_tc.to(device)
-            self.radius_test = None
-            self.initial_train = initial_tc.to(device)
-            self.initial_test = None
             self.t_train = t_tc.to(device)
             self.t_test = None
             self.x_train = x_tc.to(device)
@@ -822,10 +738,6 @@ class train:
         self.test_data = (
             torch.cat(
                 [
-                    self.center_x_test,
-                    self.center_y_test,
-                    self.radius_test,
-                    self.initial_test,
                     self.t_test,
                     self.x_test,
                     self.y_test,
@@ -845,10 +757,6 @@ class train:
 
         self.batch = torch.cat(
             [
-                self.center_x_train,
-                self.center_y_train,
-                self.radius_train,
-                self.initial_train,
                 self.t_train,
                 self.x_train,
                 self.y_train,
@@ -856,7 +764,13 @@ class train:
             dim=1,
         )[self.i : self.i + self.batch_size, :]
 
-        C_initial_batch = initial_condition_points(self.batch).to(self.device)
+        C_initial_batch = initial_condition_points(
+            self.batch,
+            self.center_x_tc,
+            self.center_y_tc,
+            self.radius_tc,
+            self.initial_tc,
+        ).to(self.device)
 
         # Computing intial loss
         t_initial = torch.zeros((self.batch.shape[0], 1), dtype=torch.float32).to(
@@ -864,7 +778,7 @@ class train:
         )
 
         mesh_ini = torch.cat(
-            [self.batch[:, :5], t_initial, self.batch[:, 6:]],
+            [t_initial, self.batch[:, 1:]],
             dim=1,
         )
 
@@ -874,16 +788,12 @@ class train:
 
         # Computing pde loss
 
-        center_x, center_y, radius, initial, t, x, y = generate_training_points(
+        t, x, y = generate_training_points(
             self.n_points, self.device
         )
 
         predicted_pde = pde(
             self.model,
-            center_x,
-            center_y,
-            radius,
-            initial,
             t,
             x,
             y,
@@ -910,10 +820,6 @@ class train:
         predicted_boundary = boundary_condition(
             self.model,
             self.device,
-            center_x,
-            center_y,
-            radius,
-            initial,
             t,
             x_bnd,
             y_bnd,
@@ -956,7 +862,7 @@ class train:
 
         dt_min, dt_max = self.norm_weights if self.norm_weights else (0, 1)
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-7)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
         self.lr_scheduler = optim.lr_scheduler.ExponentialLR(
             optimizer=self.optimizer, gamma=self.decay_rate
         )
@@ -1029,3 +935,4 @@ class train:
             C_data_loss_it,
             val_loss_it,
         )
+        
