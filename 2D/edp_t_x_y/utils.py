@@ -110,9 +110,6 @@ def init_mesh(
     k,
     center,
     radius,
-    central_ini_cond,
-    ini_cond_var,
-    n_ini,
     create_source=False,
     source_type="central",
     verbose=False,
@@ -146,13 +143,6 @@ def init_mesh(
     size_y = int(((y_dom[1] - y_dom[0]) / (h)))
     size_t = int(((t_dom[1] - t_dom[0]) / (k)) + 1)
 
-    initial_cond = np.linspace(
-        central_ini_cond * (1 - ini_cond_var),
-        central_ini_cond * (1 + ini_cond_var),
-        num=n_ini,
-        endpoint=True,
-    )
-
     if create_source:
         if source_type == "central":
             leu_source_points = preencher_matriz_radialmente(size_x)
@@ -179,4 +169,4 @@ def init_mesh(
         )
     )
 
-    return (size_x, size_y, size_t, initial_cond, leu_source_points, struct_name)
+    return (size_x, size_y, size_t, leu_source_points, struct_name)
