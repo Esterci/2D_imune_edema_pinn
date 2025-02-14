@@ -1,4 +1,5 @@
 from itertools import product
+import glob
 
 
 def add_line(line, out):
