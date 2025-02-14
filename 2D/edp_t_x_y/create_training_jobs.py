@@ -134,7 +134,7 @@ for n_l in n_hd_layers:
                     )
 
                 add_line(
-                    "time ~/.conda/envs/pyTourch/bin/python3 edp_pinn_model.py "
+                    "time ~/.conda/envs/pyTourch/bin/python3 pinn_training.py "
                     + " -n "
                     + str(int(batch[1]))
                     + " -b "
