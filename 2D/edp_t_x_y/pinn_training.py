@@ -1,51 +1,52 @@
-from pinn import *
-import os
+import numpy
+import torch
 import pickle as pk
-import argparse
+import os
 import json
+from pinn import *
+import argparse
 
-decay_rate = 0.95
+# Parsing model parameters
+
+parser = argparse.ArgumentParser(description="", add_help=False)
+parser = argparse.ArgumentParser()
+
+
+parser.add_argument(
+    "-n",
+    "--n_epochs",
+    type=int,
+    action="store",
+    dest="n_epochs",
+    required=True,
+    default=None,
+    help="",
+)
+
+parser.add_argument(
+    "-b",
+    "--batch_size",
+    type=int,
+    action="store",
+    dest="batch_size",
+    required=True,
+    default=None,
+    help="",
+)
+
+parser.add_argument(
+    "-a",
+    "--arch_str",
+    type=str,
+    action="store",
+    dest="arch_str",
+    required=True,
+    default=None,
+    help="",
+)
 
 
 if __name__ == "__main__":
-
-    # Parsing model parameters
-
-    parser = argparse.ArgumentParser(description="", add_help=False)
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "-n",
-        "--n_epochs",
-        type=int,
-        action="store",
-        dest="n_epochs",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-b",
-        "--batch_size",
-        type=int,
-        action="store",
-        dest="batch_size",
-        required=True,
-        default=None,
-        help="",
-    )
-
-    parser.add_argument(
-        "-a",
-        "--arch_str",
-        type=str,
-        action="store",
-        dest="arch_str",
-        required=True,
-        default=None,
-        help="",
-    )
 
     args = parser.parse_args()
 
@@ -86,12 +87,18 @@ if __name__ == "__main__":
 
     Cn_list, Cb_list, speed_up_list = read_files("fvm_sim")
 
-    Cb_fvm, Cn_fvm, center_x_array, center_y_array, radius_array = format_array(
-        Cb_list, Cn_list
+    Cp_fvm, Cl_fvm, center_x_array, center_y_array, radius_array = format_array(
+        [Cb_list[5]], [Cn_list[5]]
     )
 
+    reduced_Cp_fvm, _ = under_sampling(3000, Cp_fvm)
+    reduced_Cl_fvm, choosen_points = under_sampling(3000, Cl_fvm)
+
+    simp_Cp_fvm = simplify_mx(reduced_Cp_fvm)
+    simp_Cl_fvm = simplify_mx(reduced_Cl_fvm)
+
     size_x, size_y, size_t, initial_cond = get_mesh_properties(
-        x_dom, y_dom, t_dom, h, k, central_ini_cond, ini_cond_var, Cb_fvm.shape[1]
+        x_dom, y_dom, t_dom, h, k, central_ini_cond, ini_cond_var, Cp_fvm.shape[1]
     )
 
     (
@@ -115,11 +122,17 @@ if __name__ == "__main__":
         center_y_array,
         initial_cond,
         radius_array,
-        Cb_fvm,
-        Cn_fvm,
+        simp_Cp_fvm,
+        simp_Cl_fvm,
+        choosen_points,
     )
 
     model = generate_model(arch_str).to(device).apply(init_weights)
+
+    print(model)
+
+    decay_rate = 0.9985
+    val = 0.2
 
     trainer = train(
         n_epochs=n_epochs,
@@ -137,9 +150,9 @@ if __name__ == "__main__":
         device=device,
         n_points=batch_size,
         constant_properties=constant_properties,
-        validation=0.1,
-        tolerance=0.001,
-        patience=50,
+        validation=val,
+        tolerance=0.01,
+        patience=20,
     )
 
     (

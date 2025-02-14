@@ -509,12 +509,12 @@ def generate_boundary_points(num_points, device):
 
 def initial_condition_points(data_input):
 
-    center_x_tc= data_input[:,1]
-    center_y_tc= data_input[:,2]
-    radius_tc= data_input[:,3]
-    initial_tc = data_input[:,0]
-    x_tc= data_input[:,5]
-    y_tc= data_input[:,6]
+    center_x_tc = data_input[:, 1]
+    center_y_tc = data_input[:, 2]
+    radius_tc = data_input[:, 3]
+    initial_tc = data_input[:, 0]
+    x_tc = data_input[:, 5]
+    y_tc = data_input[:, 6]
 
     # Calculate squared distances from each point to the circle centers
     squared_distances = (x_tc - center_x_tc) ** 2 + (y_tc - center_y_tc) ** 2
@@ -523,7 +523,7 @@ def initial_condition_points(data_input):
     inside_circle_mask = squared_distances <= radius_tc**2
 
     # Initialize the tensor and set the values for points inside the circle
-    C_init = torch.zeros((len(x_tc), 2),dtype=torch.float32)
+    C_init = torch.zeros((len(x_tc), 2), dtype=torch.float32)
     C_init[:, 1] = inside_circle_mask.ravel() * initial_tc.ravel()
 
     return C_init
@@ -604,7 +604,8 @@ def boundary_condition(
         Cp_boundary = torch.mul((Db * dCp_dy[0]), ny)
 
         return torch.cat([Cl_boundary, Cp_boundary], dim=1)
-    
+
+
 def pde(
     model,
     center_x,
@@ -969,11 +970,10 @@ class train:
             for bt, self.i in enumerate(range(0, len(self.x_train), self.batch_size)):
 
                 self.optimizer.step(self.loss_func)
-                
+
                 break
 
             self.lr_scheduler.step()
-            
 
             # Computing validation loss
 
@@ -1017,7 +1017,6 @@ class train:
                     val_loss_it = val_loss_it[:epoch]
 
                     print("Early break!")
-
 
         return (
             self.model,

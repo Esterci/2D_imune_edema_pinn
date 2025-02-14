@@ -3,26 +3,24 @@ import glob
 from itertools import product
 import numpy as np
 
-sim_list = glob.glob("edo_pinn_sim/*")
-
-file = "h--0.1__k--0.1__Db--0.0001__Dn--0.0001__phi--0.2__ksi--0.0__cb--0.15__lambd_nb--1.8__mi_n--0.2__lambd_bn--0.1__y_n--0.1__Cn_max--0.5__X_nb--0.0001__x_dom_min--0__x_dom_max--1__y_dom_min--0__y_dom_max--1__t_dom_min--0__t_dom_max--10"
+sim_list = glob.glob("nn_parameters/*")
 
 n_hd_layers = [4]
-n_neurons = [2**2, 2**3, 2**4]
+n_neurons = [2**2]  # , 2**3, 2**4]
+
 activation_func = [
-    "LeakyReLU",
-    "Sigmoid",
-    "Elu",
+    # "LeakyReLU",
+    # "Sigmoid",
+    # "Elu",
     "Tanh",
-    "ReLU",
-    "SiLU",
+    # "ReLU",
+    # "SiLU",
 ]
 
-batch_size = [(1000, 1090)]  # , (50000, 1400)]
+
+batch_size = [(108000, 300)]  # , (50000, 1400)]
 
 possible_layers = list(product(activation_func, n_neurons))
-
-count = 0
 
 # writing jobs
 
@@ -37,21 +35,20 @@ for n_l in n_hd_layers:
 
         for batch in batch_size:
             pinn_name = (
-                "pinn_sim/"
+                "nn_parameters/"
                 + "epochs_{}__batch_{}__arch_".format(batch[1], batch[0])
                 + arch_str
-            ) + ".pkl"
+            ) + ".pt"
+
+            print("=" * 20)
+            print(pinn_name)
+            print("\n")
 
             if pinn_name not in sim_list:
-                print("=" * 20)
-                print(pinn_name)
-                print("\n")
 
                 os.system(
                     (
-                        "time python3 edp_pinn_model.py "
-                        + "-f "
-                        + file
+                        "time python3 pinn_training.py "
                         + " -n "
                         + str(int(batch[1]))
                         + " -b "
@@ -60,5 +57,6 @@ for n_l in n_hd_layers:
                         + arch_str
                     )
                 )
-
-            count += 1
+            
+            else:
+                print("Already Trained")

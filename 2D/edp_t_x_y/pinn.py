@@ -2,10 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import time
 import pickle as pk
-import matplotlib.pyplot as plt
-import json
 from glob import glob
 
 activation_dict = {
@@ -40,92 +37,68 @@ def read_files(path):
     file_list = sorted(glob(path + "/*"))
 
     speed_up_list = []
-    Cb_list = []
-    Cn_list = []
+    Cl_list = []
+    Cp_list = []
 
     for file in file_list:
 
         variable = lambda a: a.split("/")[-1].split("__")[0]
 
         if variable(file) == "Cl":
-            Cn_list.append(file)
+            Cl_list.append(file)
 
         elif variable(file) == "Cp":
-            Cb_list.append(file)
+            Cp_list.append(file)
 
         elif variable(file) == "speed_up":
             speed_up_list.append(file)
 
-    return Cn_list, Cb_list, speed_up_list
+    return Cl_list, Cp_list, speed_up_list
 
 
-def change_dim_order(np_array):
-    # (2, 2, 100001, 21, 21)
-    sim_shape = np_array.shape
+def format_array(Cp_list, Cl_list):
 
-    form_array = np.zeros(
-        (
-            sim_shape[2],
-            sim_shape[0],
-            sim_shape[1],
-            sim_shape[3],
-            sim_shape[4],
-        )
-    )
+    for i, (Cp_file, Cl_file) in enumerate(zip(Cp_list, Cl_list)):
+        with open(Cp_file, "rb") as f:
+            new_Cp = pk.load(f)
 
-    for i in range(sim_shape[2]):
-        form_array[i, :, :, :, :] = np_array[:, :, i, :, :]
+        with open(Cl_file, "rb") as f:
+            new_Cl = pk.load(f)
 
-    return form_array
-
-
-def format_array(Cb_list, Cn_list):
-
-    for i, (Cb_file, Cn_file) in enumerate(zip(Cb_list, Cn_list)):
-        with open(Cb_file, "rb") as f:
-            new_Cb = pk.load(f)
-
-        with open(Cn_file, "rb") as f:
-            new_Cn = pk.load(f)
-
-        sim_shape = new_Cb.shape
+        sim_shape = new_Cp.shape
 
         if i == 0:
-            Cb = np.zeros(
-                (len(Cb_list), sim_shape[0], sim_shape[1], sim_shape[2], sim_shape[3])
+            Cp = np.zeros(
+                (len(Cp_list), sim_shape[0], sim_shape[1], sim_shape[2], sim_shape[3])
             )
 
-            Cn = np.zeros(
-                (len(Cn_list), sim_shape[0], sim_shape[1], sim_shape[2], sim_shape[3])
+            Cl = np.zeros(
+                (len(Cl_list), sim_shape[0], sim_shape[1], sim_shape[2], sim_shape[3])
             )
 
-            center_x = np.zeros(len(Cb_list))
+            center_x = np.zeros(len(Cp_list))
 
-            center_y = np.zeros(len(Cb_list))
+            center_y = np.zeros(len(Cp_list))
 
-            radius_array = np.zeros(len(Cb_list))
+            radius_array = np.zeros(len(Cp_list))
 
-        Cb[i, :, :, :, :] = new_Cb
+        Cp[i, :, :, :, :] = new_Cp
 
-        Cn[i, :, :, :, :] = new_Cn
+        Cl[i, :, :, :, :] = new_Cl
 
-        center, radius = get_infection_site(Cb_file)
+        center, radius = get_infection_site(Cp_file)
 
         center_x[i], center_y[i] = center
 
         radius_array[i] = radius
 
-    return Cb, Cn, center_x, center_y, radius_array
-
-
-def simplify_mx(mx):
-    return mx[0,0,:,:,:]
+    return Cp, Cl, center_x, center_y, radius_array
 
 
 def under_sampling(n_samples, mx):
 
     choosen_points = np.linspace(
-        0, mx.shape[2], num=n_samples, endpoint=False, dtype=int
+        0, mx.shape[2] - 1, num=n_samples, endpoint=True, dtype=int
     )
 
     reduced_mx = np.zeros(
@@ -135,7 +108,11 @@ def under_sampling(n_samples, mx):
     for i, idx in enumerate(choosen_points):
         reduced_mx[:, :, i, :, :] = mx[:, :, idx, :, :]
 
-    return reduced_mx
+    return reduced_mx, choosen_points
+
+
+def simplify_mx(mx):
+    return mx[0, 0, :, :, :]
 
 
 def get_mesh_properties(
@@ -174,31 +151,27 @@ def get_mesh_properties(
     return (size_x, size_y, size_t, initial_cond)
 
 
-def create_input_mesh(
-    t_dom,
-    x_dom,
-    y_dom,
-    size_t,
-    size_x,
-    size_y,
-):
-    
-    t_np = np.linspace(t_dom[0], t_dom[1], num=size_t, endpoint=False, dtype=np.float32)
-    x_np = np.linspace(x_dom[0], x_dom[1], num=size_x, endpoint=False, dtype=np.float32)
-    y_np = np.linspace(y_dom[0], y_dom[1], num=size_y, endpoint=False, dtype=np.float32)
+def create_input_mesh(t_dom, x_dom, y_dom, size_t, size_x, size_y, choosen_points):
 
-    # Change first with second dimension for np.meshgrid match with
-    # torch.mashgrid and C flattening logic
+    t_np = np.linspace(
+        t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
+    )[choosen_points]
+    x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=True, dtype=np.float32)
+    y_np = np.linspace(y_dom[0], y_dom[-1], num=size_y, endpoint=True, dtype=np.float32)
 
-    x_mesh, t_mesh, y_mesh = np.meshgrid(x_np, t_np, y_np)
+    x_mesh, t_mesh, y_mesh = np.meshgrid(
+        x_np,
+        t_np,
+        y_np,
+    )
 
     return (
         t_mesh,
         x_mesh,
         y_mesh,
     )
-    
-    
+
+
 def allocates_training_mesh(
     t_dom,
     x_dom,
@@ -210,22 +183,16 @@ def allocates_training_mesh(
     center_y_array,
     initial_cond,
     radius_array,
-    Cb_fvm,
-    Cn_fvm,
+    Cp_fvm,
+    Cl_fvm,
+    choosen_points,
 ):
 
     (
         t_mesh,
         x_mesh,
         y_mesh,
-    ) = create_input_mesh(
-        t_dom,
-        x_dom,
-        y_dom,
-        size_t,
-        size_x,
-        size_y,
-    )
+    ) = create_input_mesh(t_dom, x_dom, y_dom, size_t, size_x, size_y, choosen_points)
 
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -242,43 +209,32 @@ def allocates_training_mesh(
     )
 
     center_x_tc = (
-        torch.tensor(center_x_array[0], dtype=torch.float32)
+        torch.tensor(center_x_array, dtype=torch.float32)
         .reshape(-1, 1)
         .requires_grad_(True)
     )
 
     center_y_tc = (
-        torch.tensor(center_y_array[0], dtype=torch.float32)
+        torch.tensor(center_y_array, dtype=torch.float32)
         .reshape(-1, 1)
         .requires_grad_(True)
     )
 
     radius_tc = (
-        torch.tensor(radius_array[0], dtype=torch.float32)
+        torch.tensor(radius_array, dtype=torch.float32)
         .reshape(-1, 1)
         .requires_grad_(True)
     )
 
-    t_tc = (
-        torch.tensor(t_mesh, dtype=torch.float32)
-        .reshape(-1, 1)
-        .requires_grad_(True)
-    )
+    t_tc = torch.tensor(t_mesh, dtype=torch.float32).reshape(-1, 1).requires_grad_(True)
 
-    x_tc = (
-        torch.tensor(x_mesh, dtype=torch.float32)
-        .reshape(-1, 1)
-        .requires_grad_(True)
-    )
+    x_tc = torch.tensor(x_mesh, dtype=torch.float32).reshape(-1, 1).requires_grad_(True)
 
-    y_tc = (
-        torch.tensor(y_mesh, dtype=torch.float32)
-        .reshape(-1, 1)
-        .requires_grad_(True)
-    )
+    y_tc = torch.tensor(y_mesh, dtype=torch.float32).reshape(-1, 1).requires_grad_(True)
 
     target = torch.tensor(
-        np.hstack((Cn_fvm.reshape(-1, 1), Cb_fvm.reshape(-1, 1))), dtype=torch.float32
+        np.array([Cl_fvm.flatten(), Cp_fvm.flatten()]).T,
+        dtype=torch.float32,
     )
 
     return (
@@ -292,7 +248,7 @@ def allocates_training_mesh(
         target,
         device,
     )
-    
+
 
 def generate_model(arch_str):
     hidden_layers = arch_str.split("__")
@@ -374,8 +330,8 @@ def shuffle_data(t, x, y, target):
         y[Data_num],
         target[Data_num],
     )
-    
-    
+
+
 def train_test_split(
     t,
     x,
@@ -396,14 +352,14 @@ def train_test_split(
             y_train, y_test = y[:train_ratio], y[train_ratio:]
             target_train, target_test = target[:train_ratio], target[train_ratio:]
             return (
-                t_train.requires_grad_(True).to(device),
-                t_test.requires_grad_(True).to(device),
-                x_train.requires_grad_(True).to(device),
-                x_test.requires_grad_(True).to(device),
-                y_train.requires_grad_(True).to(device),
-                y_test.requires_grad_(True).to(device),
-                target_train.requires_grad_(True).to(device),
-                target_test.requires_grad_(True).to(device),
+                t_train.to(device),
+                t_test.to(device),
+                x_train.to(device),
+                x_test.to(device),
+                y_train.to(device),
+                y_test.to(device),
+                target_train.to(device),
+                target_test.to(device),
             )
         elif test_size in range(1, len(x)):
             t_train, t_test = t[test_size:], t[:test_size]
@@ -411,17 +367,17 @@ def train_test_split(
             y_train, y_test = y[test_size:], y[:test_size]
             target_train, target_test = target[test_size:], target[:test_size]
             return (
-                t_train.requires_grad_(True).to(device),
-                t_test.requires_grad_(True).to(device),
-                x_train.requires_grad_(True).to(device),
-                x_test.requires_grad_(True).to(device),
-                y_train.requires_grad_(True).to(device),
-                y_test.requires_grad_(True).to(device),
-                target_train.requires_grad_(True).to(device),
-                target_test.requires_grad_(True).to(device),
+                t_train.to(device),
+                t_test.to(device),
+                x_train.to(device),
+                x_test.to(device),
+                y_train.to(device),
+                y_test.to(device),
+                target_train.to(device),
+                target_test.to(device),
             )
-            
-    
+
+
 def generate_training_points(num_points, device):
     t = torch.rand(num_points, 1, dtype=torch.float32) * 10
     x = torch.rand(num_points, 1, dtype=torch.float32)
@@ -432,8 +388,8 @@ def generate_training_points(num_points, device):
         x.requires_grad_(True).to(device),
         y.requires_grad_(True).to(device),
     )
-    
-    
+
+
 def generate_boundary_points(num_points, device):
     x_boundary = torch.tensor([0.0, 1], dtype=torch.float32).repeat(num_points // 2, 1)
     y_boundary = torch.rand(num_points, dtype=torch.float32)
@@ -454,48 +410,34 @@ def generate_boundary_points(num_points, device):
         y_boundary.view(-1, 1).requires_grad_(True).to(device),
         n.requires_grad_(True).to(device),
     )
-    
-    
+
+
 def initial_condition_points(
-    data_input, center_x_tc, center_y_tc, radius_tc, initial_tc
+    num_points, device, center_x_tc, center_y_tc, radius_tc, initial_tc
 ):
 
-    x_tc = data_input[:, 1]
-    y_tc = data_input[:, 2]
+    x_tc = torch.rand(num_points, 1, dtype=torch.float32).to(device)
+    y_tc = torch.rand(num_points, 1, dtype=torch.float32).to(device)
 
     # Calculate squared distances from each point to the circle centers
-    squared_distances = (x_tc - center_x_tc) ** 2 + (y_tc - center_y_tc) ** 2
+    euclidean_distances = ((x_tc - center_x_tc) ** 2 + (y_tc - center_y_tc) ** 2) ** 0.5
 
     # Create a mask for points inside the circle
-    inside_circle_mask = squared_distances <= radius_tc**2
+    inside_circle_mask = euclidean_distances <= radius_tc
 
     # Initialize the tensor and set the values for points inside the circle
     C_init = torch.zeros((len(x_tc), 2), dtype=torch.float32)
     C_init[:, 1] = inside_circle_mask.ravel() * initial_tc.ravel()
 
-    return C_init
+    return x_tc, y_tc, C_init.to(device)
 
 
-def boundary_condition(
-    model, device, t_b, x_b, y_b, n, Dn, X_nb, Db
-):
+def boundary_condition(model, device, t_b, x_b, y_b, n, Dn, X_nb, Db):
 
-    input_boundary = (
-        torch.cat(
-            [
-                t_b,
-                x_b,
-                y_b,
-            ],
-            dim=1,
-        )
-        .to(device)
-        .requires_grad_(True)
-    )
+    input_data = torch.cat([t_b, x_b, y_b], dim=1).to(device)
 
-    Cp, Cl = model(input_boundary).tensor_split(2, dim=1)
+    Cl, Cp = model(input_data).tensor_split(2, dim=1)
 
-    del input_boundary
     nx, ny = n.tensor_split(2, dim=1)
 
     if nx[0].item() != 0:
@@ -547,34 +489,11 @@ def boundary_condition(
         Cp_boundary = torch.mul((Db * dCp_dy[0]), ny)
 
         return torch.cat([Cl_boundary, Cp_boundary], dim=1)
-    
-    
-def pde(
-    model,
-    t,
-    x,
-    y,
-    cb,
-    lambd_nb,
-    Db,
-    y_n,
-    Cn_max,
-    lambd_bn,
-    mi_n,
-    Dn,
-    X_nb,
-):
 
-    Cl, Cp = model(
-        torch.cat(
-            [
-                t,
-                x,
-                y,
-            ],
-            dim=1,
-        )
-    ).tensor_split(2, dim=1)
+
+def pde(model, t, x, y, cb, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb):
+
+    Cl, Cp = model(torch.cat([t, x, y], dim=1)).tensor_split(2, dim=1)
 
     # Calculating Cp value
 
@@ -688,6 +607,7 @@ class train:
         validation=None,
         tolerance=None,
         patience=10,
+        lr_rate=2e-3,
     ):
 
         self.n_epochs = n_epochs
@@ -705,6 +625,7 @@ class train:
         self.validation = validation
         self.tolerance = tolerance
         self.patience = patience
+        self.lr = lr_rate
 
         if self.validation:
             (
@@ -753,7 +674,6 @@ class train:
     def loss_func(
         self,
     ):
-        self.optimizer.zero_grad()
 
         self.batch = torch.cat(
             [
@@ -764,33 +684,32 @@ class train:
             dim=1,
         )[self.i : self.i + self.batch_size, :]
 
-        C_initial_batch = initial_condition_points(
-            self.batch,
+        x_ini, y_ini, initial_target = initial_condition_points(
+            self.batch_size,
+            self.device,
             self.center_x_tc,
             self.center_y_tc,
             self.radius_tc,
             self.initial_tc,
-        ).to(self.device)
+        )
 
         # Computing intial loss
-        t_initial = torch.zeros((self.batch.shape[0], 1), dtype=torch.float32).to(
+        t_initial = torch.zeros((self.batch_size, 1), dtype=torch.float32).to(
             self.device
         )
 
         mesh_ini = torch.cat(
-            [t_initial, self.batch[:, 1:]],
+            [t_initial, x_ini, y_ini],
             dim=1,
         )
 
-        C_initial_pred = self.model(mesh_ini)
+        initial_pred = self.model(mesh_ini)
 
-        self.loss_initial = self.criterion(C_initial_batch, C_initial_pred)
+        self.loss_initial = self.criterion(initial_target, initial_pred)
 
         # Computing pde loss
 
-        t, x, y = generate_training_points(
-            self.n_points, self.device
-        )
+        t, x, y = generate_training_points(self.n_points, self.device)
 
         predicted_pde = pde(
             self.model,
@@ -842,18 +761,16 @@ class train:
             C_pred, self.target_train[self.i : self.i + self.batch_size, :]
         )
 
+        self.C_pred = C_pred
+
         del C_pred
 
-        self.loss = (
-            10 * self.loss_initial
-            + self.loss_pde
-            + self.loss_boundary
-            + self.loss_data * 10
+        return (
+            5 * self.loss_initial
+            + 0.1 * self.loss_pde
+            + 0.5 * self.loss_boundary
+            + 10 * self.loss_data
         )
-
-        self.loss.backward()
-
-        return self.loss
 
     def execute(
         self,
@@ -862,7 +779,9 @@ class train:
 
         dt_min, dt_max = self.norm_weights if self.norm_weights else (0, 1)
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
+        self.optimizer = optim.Adam(
+            self.model.parameters(), lr=self.lr, betas=(0.9, 0.95)
+        )
         self.lr_scheduler = optim.lr_scheduler.ExponentialLR(
             optimizer=self.optimizer, gamma=self.decay_rate
         )
@@ -878,15 +797,23 @@ class train:
         for epoch in range(self.n_epochs):
             for bt, self.i in enumerate(range(0, len(self.x_train), self.batch_size)):
 
-                self.optimizer.step(self.loss_func)
+                self.optimizer.zero_grad()
 
-            self.lr_scheduler.step()
+                loss = self.loss_func()
+
+                loss.backward()
+
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+
+                self.optimizer.step()
+
+                self.lr_scheduler.step()
 
             # Computing validation loss
 
             if self.validation:
                 with torch.no_grad():
-                    val_old = val_loss
+                    val_old = val_loss.clone()
                     val_loss = self.criterion(
                         self.target_test, self.model(self.test_data)
                     )
@@ -897,11 +824,12 @@ class train:
             C_data_loss_it[epoch] = self.loss_data.item()
             val_loss_it[epoch] = val_loss.item() if self.validation else 0
 
-            if ((epoch + 1) % 10) == 0 or (epoch == 0):
+            if ((epoch + 1) % 50) == 0 or (epoch == 0):
+
                 print(
-                    f"Finished epoch {epoch+1}, latest loss {self.loss}, validation loss {val_loss.item()}"
+                    f"Finished epoch {epoch+1}, latest loss {loss}, validation loss {val_loss.item()}"
                     if self.validation
-                    else f"Finished epoch {epoch+1}, latest loss {self.loss}"
+                    else f"Finished epoch {epoch+1}, latest loss {loss}"
                 )
 
             if self.tolerance:
@@ -927,6 +855,14 @@ class train:
 
                     break
 
+        np.savetxt(
+            "tg.csv",
+            self.target_train[self.i : self.i + self.batch_size, :].cpu().numpy(),
+            delimiter=",",
+        )
+
+        np.savetxt("pred.csv", self.C_pred.cpu().detach().numpy(), delimiter=",")
+
         return (
             self.model,
             C_pde_loss_it,
@@ -935,4 +871,3 @@ class train:
             C_data_loss_it,
             val_loss_it,
         )
-        
