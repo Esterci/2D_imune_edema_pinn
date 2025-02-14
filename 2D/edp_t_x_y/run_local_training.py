@@ -6,7 +6,7 @@ import numpy as np
 sim_list = glob.glob("nn_parameters/*")
 
 n_hd_layers = [4]
-n_neurons = [2**4]  # , 2**3, 2**4]
+n_neurons = [2**4, 2**3]  # , 2**4]
 
 activation_func = [
     # "LeakyReLU",
@@ -57,6 +57,6 @@ for n_l in n_hd_layers:
                         + arch_str
                     )
                 )
-            
+
             else:
                 print("Already Trained")

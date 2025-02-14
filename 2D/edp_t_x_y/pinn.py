@@ -153,9 +153,15 @@ def get_mesh_properties(
 
 def create_input_mesh(t_dom, x_dom, y_dom, size_t, size_x, size_y, choosen_points):
 
-    t_np = np.linspace(
-        t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
-    )[choosen_points]
+    if choosen_points.any() == None:
+        t_np = np.linspace(
+            t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
+        )
+    else:
+        t_np = np.linspace(
+            t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
+        )[choosen_points]
+
     x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=True, dtype=np.float32)
     y_np = np.linspace(y_dom[0], y_dom[-1], num=size_y, endpoint=True, dtype=np.float32)
 
@@ -185,7 +191,7 @@ def allocates_training_mesh(
     radius_array,
     Cp_fvm,
     Cl_fvm,
-    choosen_points,
+    choosen_points=[None],
 ):
 
     (
