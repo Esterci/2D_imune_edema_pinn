@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import pickle as pk
 from glob import glob
+import os
 
 activation_dict = {
     "Elu": nn.ELU,
@@ -157,6 +158,7 @@ def create_input_mesh(t_dom, x_dom, y_dom, size_t, size_x, size_y, choosen_point
         t_np = np.linspace(
             t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
         )
+
     else:
         t_np = np.linspace(
             t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
@@ -191,7 +193,7 @@ def allocates_training_mesh(
     radius_array,
     Cp_fvm,
     Cl_fvm,
-    choosen_points=[None],
+    choosen_points=np.array([None]),
 ):
 
     (
@@ -877,3 +879,28 @@ class train:
             C_data_loss_it,
             val_loss_it,
         )
+
+def load_model(file_name, device):
+    cwd = os.getcwd()
+
+    arch_str = (
+        ("__")
+        .join(file_name.split("/")[-1].split(".")[0].split("__")[2:])
+        .split("arch_")[-1]
+    )
+
+    model = generate_model(arch_str).to(device)
+
+    model.load_state_dict(torch.load(cwd + "/" + file_name, weights_only=True))
+
+    print(model.eval())
+
+    return model
+
+def read_speed_ups(speed_up_list):
+    speed_up_obj = {}
+    for i,file in enumerate(speed_up_list):
+        with open(file, "rb") as f:
+            speed_up_obj[i] = pk.load(f)
+
+    return speed_up_obj
