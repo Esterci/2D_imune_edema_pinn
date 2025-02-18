@@ -168,17 +168,6 @@ for nn_num, nn_file in enumerate(nn_list):
 
         print("Erro absoluto médio", rmse)
         print("Erro absoluto máximo", max_ae)
-        print("Speed Up: {} +/-{}".format(output["mean_speed_up"], output["std_speed_up"]))
-        print(
-            "Compilation Speed Up: {} +/-{}".format(
-                output["mean_speed_comp_up"], output["std_speed_comp_up"]
-            )
-        )
-        print(
-            "PINN Speed Up: {} +/-{}".format(
-                output["mean_speed_up_pinn"], output["std_speed_up_pinn"]
-            )
-        )
         
         output["rmse"] = rmse
         output["max_ae"] = max_ae
@@ -197,6 +186,19 @@ for nn_num, nn_file in enumerate(nn_list):
         output["mean_cuda_time"] = np.mean(output["mean_cuda_time"])
         output["mean_pinn_time"] = np.mean(output["mean_pinn_time"])
 
+
+        print("Speed Up: {} +/-{}".format(output["mean_speed_up"], output["std_speed_up"]))
+        print(
+            "Compilation Speed Up: {} +/-{}".format(
+                output["mean_speed_comp_up"], output["std_speed_comp_up"]
+            )
+        )
+        print(
+            "PINN Speed Up: {} +/-{}".format(
+                output["mean_speed_up_pinn"], output["std_speed_up_pinn"]
+            )
+        )
+        
         
         prediction["pred_pinn"] = pred_pinn
         prediction["target"] = target_np
