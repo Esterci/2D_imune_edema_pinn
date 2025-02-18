@@ -163,26 +163,8 @@ for nn_num, nn_file in enumerate(nn_list):
 
             error[i] = aux[:, 0] + aux[:, 1]
 
-        output["std_speed_up"] = np.std(output["mean_speed_up"])
-        output["std_speed_comp_up"] = np.std(output["mean_speed_comp_up"])
-        output["std_speed_up_pinn"] = np.std(output["mean_speed_up_pinn"])
-        output["std_serial_time"] = np.std(output["mean_serial_time"])
-        output["std_cuda_time"] = np.std(output["mean_cuda_time"])
-        output["std_pinn_time"] = np.std(output["mean_pinn_time"])
-
-        output["mean_speed_up"] = np.mean(output["mean_speed_up"])
-        output["mean_speed_comp_up"] = np.mean(output["mean_speed_comp_up"])
-        output["mean_speed_up_pinn"] = np.mean(output["mean_speed_up_pinn"])
-        output["mean_serial_time"] = np.mean(output["mean_serial_time"])
-        output["mean_cuda_time"] = np.mean(output["mean_cuda_time"])
-        output["mean_pinn_time"] = np.mean(output["mean_pinn_time"])
-
         rmse = np.mean(error.flatten())
-
         max_ae = np.max(error.flatten())
-
-        prediction["pred_pinn"] = pred_pinn
-        prediction["target"] = target_np
 
         print("Erro absoluto médio", rmse)
         print("Erro absoluto máximo", max_ae)
@@ -197,6 +179,28 @@ for nn_num, nn_file in enumerate(nn_list):
                 output["mean_speed_up_pinn"], output["std_speed_up_pinn"]
             )
         )
+        
+        output["rmse"] = rmse
+        output["max_ae"] = max_ae
+        
+        output["std_speed_up"] = np.std(output["mean_speed_up"])
+        output["std_speed_comp_up"] = np.std(output["mean_speed_comp_up"])
+        output["std_speed_up_pinn"] = np.std(output["mean_speed_up_pinn"])
+        output["std_serial_time"] = np.std(output["mean_serial_time"])
+        output["std_cuda_time"] = np.std(output["mean_cuda_time"])
+        output["std_pinn_time"] = np.std(output["mean_pinn_time"])
+
+        output["mean_speed_up"] = np.mean(output["mean_speed_up"])
+        output["mean_speed_comp_up"] = np.mean(output["mean_speed_comp_up"])
+        output["mean_speed_up_pinn"] = np.mean(output["mean_speed_up_pinn"])
+        output["mean_serial_time"] = np.mean(output["mean_serial_time"])
+        output["mean_cuda_time"] = np.mean(output["mean_cuda_time"])
+        output["mean_pinn_time"] = np.mean(output["mean_pinn_time"])
+
+        
+        prediction["pred_pinn"] = pred_pinn
+        prediction["target"] = target_np
+
 
         with open("pinn_sim/output_" + pinn_file + ".pkl", "wb") as openfile:
             # Reading from json file
