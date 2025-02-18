@@ -78,7 +78,7 @@ size_x, size_y, size_t, initial_cond = get_mesh_properties(
 )
 
 
-nn_list = glob("nn_parameters/*")[0:3]
+nn_list = glob("nn_parameters/*")
 run_list = list(
     map(
         lambda file: file.split("pinn_sim/")[-1]
