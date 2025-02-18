@@ -104,7 +104,7 @@ for nn_num, nn_file in enumerate(nn_list):
         print("Already evaluated")
         
     else:
-        model = load_model(nn_list[0], device)
+        model = load_model(nn_file, device)
 
         speed_up_obj = read_speed_ups(speed_up_list)
 
