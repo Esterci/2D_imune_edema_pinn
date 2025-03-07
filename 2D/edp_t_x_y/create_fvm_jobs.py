@@ -79,36 +79,20 @@ add_line(
 
 count = 0
 
-for i in range(8):
+for i in range(33):
 
-    if i % len(v_gpu) == 0 and i != 1:
-        add_line(
-            "export CUDA_VISIBLE_DEVICES="
-            + v_gpu[i % len(v_gpu)]
-            + " && time ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py & ",
-            "jobs/fvm_comp.job",
-        )
-
-    elif i == 1:
+    if i != 0 and (i % len(v_gpu) == len(v_gpu) - 1 or i == 32):
         add_line(
             "export CUDA_VISIBLE_DEVICES="
             + v_gpu[i % len(v_gpu)]
             + " && time ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py;",
             "jobs/fvm_comp.job",
-            True,
         )
 
     else:
         add_line(
             "export CUDA_VISIBLE_DEVICES="
             + v_gpu[i % len(v_gpu)]
-            + " && time ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py;",
+            + " && time ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py & ",
             "jobs/fvm_comp.job",
-            False,
-        )
-
-        add_line(
-            "echo 'Iteration " + str(i) + " and " + str(i + 1) + "'",
-            "jobs/fvm_comp.job",
-            True,
         )
