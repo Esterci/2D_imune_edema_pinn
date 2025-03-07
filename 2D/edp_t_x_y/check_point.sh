@@ -58,6 +58,12 @@ mv pinn_sim_$d.zip $LOCAL_PINN_GIT
 
 #################
 
+zip -r scale_weights_$d.zip scale_weights/ 
+
+mv scale_weights_$d.zip $LOCAL_PINN_GIT
+
+#################
+
 zip -r source_points_$d.zip source_points/ 
 
 mv source_points_$d.zip $LOCAL_PINN_GIT

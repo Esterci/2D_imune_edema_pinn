@@ -863,14 +863,6 @@ class train:
 
                     break
 
-        np.savetxt(
-            "tg.csv",
-            self.target_train[self.i : self.i + self.batch_size, :].cpu().numpy(),
-            delimiter=",",
-        )
-
-        np.savetxt("pred.csv", self.C_pred.cpu().detach().numpy(), delimiter=",")
-
         return (
             self.model,
             C_pde_loss_it,
@@ -879,6 +871,7 @@ class train:
             C_data_loss_it,
             val_loss_it,
         )
+
 
 def load_model(file_name, device):
     cwd = os.getcwd()
@@ -897,9 +890,10 @@ def load_model(file_name, device):
 
     return model
 
+
 def read_speed_ups(speed_up_list):
     speed_up_obj = {}
-    for i,file in enumerate(speed_up_list):
+    for i, file in enumerate(speed_up_list):
         with open(file, "rb") as f:
             speed_up_obj[i] = pk.load(f)
 

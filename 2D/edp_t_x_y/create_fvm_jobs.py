@@ -19,8 +19,10 @@ def add_line(line, out, line_break=True):
 
 
 v_gpu = [
-    "GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
-    "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
+    "UUID: MIG-bbc0f904-20ba-5ff0-aa76-754fa93730ba",
+    "UUID: MIG-5e5f0459-057d-5c61-b065-68892d1d27df",
+    "UUID: MIG-6d453f0c-ca44-53ae-947c-52497b81d66b",
+    "UUID: MIG-fad1c2a5-0979-5cbb-b4db-06a50630487c",
 ]
 
 
@@ -43,11 +45,11 @@ add_line(
     "jobs/fvm_comp.job",
 )
 add_line(
-    "# Run time (hh:mm:ss) - 600:00 hr",
+    "# Run time (hh:mm:ss) - 10:00 hr",
     "jobs/fvm_comp.job",
 )
 add_line(
-    "#PBS -l walltime=600:00:00",
+    "#PBS -l walltime=10:00:00",
     "jobs/fvm_comp.job",
 )
 add_line(
@@ -55,7 +57,7 @@ add_line(
     "jobs/fvm_comp.job",
 )
 add_line(
-    "#PBS -l nodes=compute-1-1:ppn=2",
+    "#PBS -l nodes=compute-1-0:ppn=128",
     "jobs/fvm_comp.job",
 )
 add_line(
@@ -77,9 +79,9 @@ add_line(
 
 count = 0
 
-for i in range(2):
+for i in range(8):
 
-    if i % 2 == 0 and i != 1:
+    if i % len(v_gpu) == 0 and i != 1:
         add_line(
             "export CUDA_VISIBLE_DEVICES="
             + v_gpu[i % len(v_gpu)]

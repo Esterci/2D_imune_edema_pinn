@@ -8,9 +8,6 @@ import math
 from utils import init_mesh
 from numba import cuda
 
-# List to store speed-up factors for each iteration
-speed_up_list = []
-
 # Load constant properties from JSON file
 with open("control_dicts/constant_properties.json", "r") as openfile:
     constant_properties = json.load(openfile)
@@ -32,7 +29,6 @@ y_n = constant_properties["y_n"]
 Cn_max = constant_properties["Cn_max"]
 X_nb = constant_properties["X_nb"]
 central_ini_cond = constant_properties["central_ini_cond"]
-ini_cond_var = constant_properties["ini_cond_var"]
 
 h = mesh_properties["h"]
 k = mesh_properties["k"]
@@ -40,12 +36,14 @@ x_dom = mesh_properties["x_dom"]
 y_dom = mesh_properties["y_dom"]
 t_dom = mesh_properties["t_dom"]
 
+timestamp = time.time()
+
 # Generate random initial condition parameters
-center = (np.random.rand(), np.random.rand())
-radius = np.random.rand() * (0.2 - 0.1) + 0.1
+center = (0.2, 0.8)
+radius = 0.13
 
 # Initialize mesh and related properties
-size_x, size_y, size_t, initial_cond, leu_source_points, struct_name = init_mesh(
+size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
     x_dom,
     y_dom,
     t_dom,
@@ -53,9 +51,6 @@ size_x, size_y, size_t, initial_cond, leu_source_points, struct_name = init_mesh
     k,
     center,
     radius,
-    central_ini_cond,
-    ini_cond_var,
-    10,
     create_source=False,
     source_type="central",
 )
@@ -64,38 +59,30 @@ print(f"Mesh initialized for iteration.")
 
 start = time.time()
 
-# Initialize concentration arrays for neutrophils (Cn) and bacteria (Cb)
-Cb_init = np.zeros((len(initial_cond), size_t, size_x, size_y))
-Cn_init = np.zeros((len(initial_cond), size_t, size_x, size_y))
-
 # Solve PDE for each initial condition in serial mode
-for ini_index in range(len(initial_cond)):
 
-    Cb, Cn = solve_pde(
-        leu_source_points,
-        size_t,
-        size_x,
-        size_y,
-        h,
-        k,
-        Db,
-        Dn,
-        phi,
-        cb,
-        lambd_nb,
-        mi_n,
-        lambd_bn,
-        y_n,
-        Cn_max,
-        X_nb,
-        initial_cond[ini_index],
-        center=center,
-        radius=radius,
-        verbose=False,
-    )
-
-    Cb_init[ini_index, :, :] = Cb
-    Cn_init[ini_index, :, :] = Cn
+Cb, Cn = solve_pde(
+    leu_source_points,
+    size_t,
+    size_x,
+    size_y,
+    h,
+    k,
+    Db,
+    Dn,
+    phi,
+    cb,
+    lambd_nb,
+    mi_n,
+    lambd_bn,
+    y_n,
+    Cn_max,
+    X_nb,
+    central_ini_cond,
+    center=center,
+    radius=radius,
+    verbose=False,
+)
 
 end = time.time()
 
@@ -104,14 +91,14 @@ serial_time = end - start
 print(f"Serial computation time for iteration: {serial_time:.2f} seconds.")
 
 # Save results of serial computation
-with open(f"fvm_sim/Cp__{struct_name}.pkl", "wb") as f:
-    pk.dump(Cb_init, f)
+with open(f"fvm_sim/Cp__{struct_name}__{str(timestamp)}.pkl", "wb") as f:
+    pk.dump(Cb, f)
 
-with open(f"fvm_sim/Cl__{struct_name}.pkl", "wb") as f:
-    pk.dump(Cn_init, f)
+with open(f"fvm_sim/Cl__{struct_name}__{str(timestamp)}.pkl", "wb") as f:
+    pk.dump(Cn, f)
 
 # Define CUDA threads and blocks
-threadsperblock = (int(size_x / 2), int(size_y / 2))
+threadsperblock = (size_x // 2, size_y // 2)
 blockspergrid_x = math.ceil(size_x / threadsperblock[0])
 blockspergrid_y = math.ceil(size_y / threadsperblock[1])
 blockspergrid = (blockspergrid_x, blockspergrid_y)
@@ -119,55 +106,54 @@ blockspergrid = (blockspergrid_x, blockspergrid_y)
 start = time.time()
 
 # Compile CUDA executable and solve PDE using CUDA
-for ini_cond in initial_cond:
 
-    # Initialize device arrays for concentrations and sources
-    Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-    Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-    device_leu_source = cuda.to_device(leu_source_points)
+# Initialize device arrays for concentrations and sources
+Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
+Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
+device_leu_source = cuda.to_device(leu_source_points)
 
-    # Additional buffers for synchronization
-    Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
-    Cn_buf_1 = cuda.device_array_like(Cn_buf_0)
+# Additional buffers for synchronization
+Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
+Cn_buf_1 = cuda.device_array_like(Cn_buf_0)
 
-    # Arrays to store results for each time step
-    Cb_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
-    Cn_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
+# Arrays to store results for each time step
+Cb_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
+Cn_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
 
-    cu_solve_pde[threadsperblock, blockspergrid](
-        Cb_buf_0,
-        Cn_buf_0,
-        Cb_buf_1,
-        Cn_buf_1,
-        Cb_final_device,
-        Cn_final_device,
-        device_leu_source,
-        size_t,
-        size_x,
-        size_y,
-        h,
-        k,
-        Db,
-        Dn,
-        phi,
-        cb,
-        lambd_nb,
-        mi_n,
-        lambd_bn,
-        y_n,
-        Cn_max,
-        X_nb,
-        ini_cond,
-        center,
-        radius,
-    )
+cu_solve_pde[threadsperblock, blockspergrid](
+    Cb_buf_0,
+    Cn_buf_0,
+    Cb_buf_1,
+    Cn_buf_1,
+    Cb_final_device,
+    Cn_final_device,
+    device_leu_source,
+    size_t,
+    size_x,
+    size_y,
+    h,
+    k,
+    Db,
+    Dn,
+    phi,
+    cb,
+    lambd_nb,
+    mi_n,
+    lambd_bn,
+    y_n,
+    Cn_max,
+    X_nb,
+    central_ini_cond,
+    center,
+    radius,
+)
 
-    # Copy results back to the host
-    Cb_host = np.empty(shape=Cb_final_device.shape, dtype=Cb_final_device.dtype)
-    Cb_final_device.copy_to_host(Cb_host)
+# Copy results back to the host
+Cb_host = np.empty(shape=Cb_final_device.shape, dtype=Cb_final_device.dtype)
+Cb_final_device.copy_to_host(Cb_host)
 
-    Cn_host = np.empty(shape=Cn_final_device.shape, dtype=Cn_final_device.dtype)
-    Cn_final_device.copy_to_host(Cn_host)
+Cn_host = np.empty(shape=Cn_final_device.shape, dtype=Cn_final_device.dtype)
+Cn_final_device.copy_to_host(Cn_host)
 
 end = time.time()
 
@@ -175,56 +161,55 @@ cuda_comp_time = end - start
 
 start = time.time()
 
-# Compile CUDA executable and solve PDE using CUDA
-for ini_cond in initial_cond:
+# Solve PDE using CUDA and pre-compiled kernel functions
 
-    # Initialize device arrays for concentrations and sources
-    Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-    Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-    device_leu_source = cuda.to_device(leu_source_points)
+# Initialize device arrays for concentrations and sources
+Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
+Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
+device_leu_source = cuda.to_device(leu_source_points)
 
-    # Additional buffers for synchronization
-    Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
-    Cn_buf_1 = cuda.device_array_like(Cn_buf_0)
+# Additional buffers for synchronization
+Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
+Cn_buf_1 = cuda.device_array_like(Cn_buf_0)
 
-    # Arrays to store results for each time step
-    Cb_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
-    Cn_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
+# Arrays to store results for each time step
+Cb_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
+Cn_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
 
-    cu_solve_pde[threadsperblock, blockspergrid](
-        Cb_buf_0,
-        Cn_buf_0,
-        Cb_buf_1,
-        Cn_buf_1,
-        Cb_final_device,
-        Cn_final_device,
-        device_leu_source,
-        size_t,
-        size_x,
-        size_y,
-        h,
-        k,
-        Db,
-        Dn,
-        phi,
-        cb,
-        lambd_nb,
-        mi_n,
-        lambd_bn,
-        y_n,
-        Cn_max,
-        X_nb,
-        ini_cond,
-        center,
-        radius,
-    )
+cu_solve_pde[threadsperblock, blockspergrid](
+    Cb_buf_0,
+    Cn_buf_0,
+    Cb_buf_1,
+    Cn_buf_1,
+    Cb_final_device,
+    Cn_final_device,
+    device_leu_source,
+    size_t,
+    size_x,
+    size_y,
+    h,
+    k,
+    Db,
+    Dn,
+    phi,
+    cb,
+    lambd_nb,
+    mi_n,
+    lambd_bn,
+    y_n,
+    Cn_max,
+    X_nb,
+    central_ini_cond,
+    center,
+    radius,
+)
 
-    # Copy results back to the host
-    Cb_host = np.empty(shape=Cb_final_device.shape, dtype=Cb_final_device.dtype)
-    Cb_final_device.copy_to_host(Cb_host)
+# Copy results back to the host
+Cb_host = np.empty(shape=Cb_final_device.shape, dtype=Cb_final_device.dtype)
+Cb_final_device.copy_to_host(Cb_host)
 
-    Cn_host = np.empty(shape=Cn_final_device.shape, dtype=Cn_final_device.dtype)
-    Cn_final_device.copy_to_host(Cn_host)
+Cn_host = np.empty(shape=Cn_final_device.shape, dtype=Cn_final_device.dtype)
+Cn_final_device.copy_to_host(Cn_host)
 
 end = time.time()
 
@@ -242,7 +227,9 @@ print(f"Speed-up with compilation for iteration: {speed_comp_up:.2f}x")
 print(f"Speed-up for iteration: {speed_up:.2f}x")
 
 # Save speed-up
-with open("fvm_sim/speed_up__" + struct_name + ".pkl", "wb") as f:
+with open(
+    "fvm_sim/speed_up__" + struct_name + "__" + str(timestamp) + ".pkl", "wb"
+) as f:
     pk.dump(
         {
             "speed_comp_up": speed_comp_up,
@@ -253,3 +240,7 @@ with open("fvm_sim/speed_up__" + struct_name + ".pkl", "wb") as f:
         },
         f,
     )
+
+device = cuda.get_current_device()
+device.reset()
+cuda.close()

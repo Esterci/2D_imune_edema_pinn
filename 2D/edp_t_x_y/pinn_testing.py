@@ -102,7 +102,7 @@ for nn_num, nn_file in enumerate(nn_list):
 
     if pinn_file in run_list:
         print("Already evaluated")
-        
+
     else:
         model = load_model(nn_file, device)
 
@@ -145,7 +145,9 @@ for nn_num, nn_file in enumerate(nn_list):
 
             speed_up_obj[i]["pinn_time"] = pinn_time
 
-            speed_up_obj[i]["speed_up_pinn"] = speed_up_obj[i]["serial_time"] / pinn_time
+            speed_up_obj[i]["speed_up_pinn"] = (
+                speed_up_obj[i]["serial_time"] / pinn_time
+            )
 
             output["mean_speed_up"].append(speed_up_obj[i]["speed_up"])
 
@@ -168,10 +170,10 @@ for nn_num, nn_file in enumerate(nn_list):
 
         print("Erro absoluto médio", rmse)
         print("Erro absoluto máximo", max_ae)
-        
+
         output["rmse"] = rmse
         output["max_ae"] = max_ae
-        
+
         output["std_speed_up"] = np.std(output["mean_speed_up"])
         output["std_speed_comp_up"] = np.std(output["mean_speed_comp_up"])
         output["std_speed_up_pinn"] = np.std(output["mean_speed_up_pinn"])
@@ -186,8 +188,9 @@ for nn_num, nn_file in enumerate(nn_list):
         output["mean_cuda_time"] = np.mean(output["mean_cuda_time"])
         output["mean_pinn_time"] = np.mean(output["mean_pinn_time"])
 
-
-        print("Speed Up: {} +/-{}".format(output["mean_speed_up"], output["std_speed_up"]))
+        print(
+            "Speed Up: {} +/-{}".format(output["mean_speed_up"], output["std_speed_up"])
+        )
         print(
             "Compilation Speed Up: {} +/-{}".format(
                 output["mean_speed_comp_up"], output["std_speed_comp_up"]
@@ -198,11 +201,9 @@ for nn_num, nn_file in enumerate(nn_list):
                 output["mean_speed_up_pinn"], output["std_speed_up_pinn"]
             )
         )
-        
-        
+
         prediction["pred_pinn"] = pred_pinn
         prediction["target"] = target_np
-
 
         with open("pinn_sim/output_" + pinn_file + ".pkl", "wb") as openfile:
             # Reading from json file

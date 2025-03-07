@@ -15,32 +15,32 @@ fi
 case "$1" in
     cleaning)
         echo "Cleaning job, error, and output files..."
-        rm -f error_files/*.e
-        rm -f jobs/*.job
-        rm -f output_files/*.o
+        find error_files/ -type f -name "*.e" -delete
+        find jobs/ -type f -name "*.job" -delete
+        find output_files/ -type f -name "*.o" -delete
         ;;
     fvm)
         echo "Cleaning FVM simulation files..."
-        rm -f fvm_sim/*.pkl
+        find fvm_sim/ -type f -name "*.pkl" -delete
         ;;
     pinn-training)
         echo "Cleaning PINN training files..."
-        rm -f learning_curves/*.pkl
-        rm -f nn_parameters/*.pt
+        find learning_curves/ -type f -name "*.pkl" -delete
+        find nn_parameters/ -type f -name "*.pt" -delete
         ;;
     pinn-inference)
         echo "Cleaning PINN inference files..."
-        rm -f pinn_sim/*.pkl
+        find pinn_sim/ -type f -name "*.pkl" -delete
         ;;
     all)
         echo "Cleaning all files..."
-        rm -f error_files/*.e
-        rm -f fvm_sim/*.pkl
-        rm -f jobs/*.job
-        rm -f learning_curves/*.pkl
-        rm -f nn_parameters/*.pt
-        rm -f output_files/*.o
-        rm -f pinn_sim/*.pkl
+        find error_files/ -type f -name "*.e" -delete
+        find fvm_sim/ -type f -name "*.pkl" -delete
+        find jobs/ -type f -name "*.job" -delete
+        find learning_curves/ -type f -name "*.pkl" -delete
+        find nn_parameters/ -type f -name "*.pt" -delete
+        find output_files/ -type f -name "*.o" -delete
+        find pinn_sim/ -type f -name "*.pkl" -delete
         ;;
     *)
         usage
