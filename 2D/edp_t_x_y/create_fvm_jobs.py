@@ -85,7 +85,7 @@ for i in range(33):
         add_line(
             "export CUDA_VISIBLE_DEVICES="
             + v_gpu[i % len(v_gpu)]
-            + " && time ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py;",
+            + " && ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py;",
             "jobs/fvm_comp.job",
         )
 
@@ -93,6 +93,6 @@ for i in range(33):
         add_line(
             "export CUDA_VISIBLE_DEVICES="
             + v_gpu[i % len(v_gpu)]
-            + " && time ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py & ",
+            + " && ~/.conda/envs/torch-numba-11/bin/python3 fvm_comparison.py & ",
             "jobs/fvm_comp.job",
         )
