@@ -19,10 +19,10 @@ def add_line(line, out, line_break=True):
 
 
 v_gpu = [
-    "UUID: MIG-bbc0f904-20ba-5ff0-aa76-754fa93730ba",
-    "UUID: MIG-5e5f0459-057d-5c61-b065-68892d1d27df",
-    "UUID: MIG-6d453f0c-ca44-53ae-947c-52497b81d66b",
-    "UUID: MIG-fad1c2a5-0979-5cbb-b4db-06a50630487c",
+    "MIG-bbc0f904-20ba-5ff0-aa76-754fa93730ba",
+    "MIG-5e5f0459-057d-5c61-b065-68892d1d27df",
+    "MIG-6d453f0c-ca44-53ae-947c-52497b81d66b",
+    "MIG-fad1c2a5-0979-5cbb-b4db-06a50630487c",
 ]
 
 
