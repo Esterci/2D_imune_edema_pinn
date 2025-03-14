@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "-d",
     "--decay_rate",
-    type=int,
+    type=float,
     action="store",
     dest="decay_rate",
     required=True,
@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
     "-l",
     "--lr_rate",
-    type=str,
+    type=float,
     action="store",
     dest="lr_rate",
     required=True,
