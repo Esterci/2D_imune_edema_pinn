@@ -52,7 +52,6 @@ if __name__ == "__main__":
 
     args_dict = vars(args)
 
-    n_epochs = args_dict["n_epochs"]
     decay_rate = args_dict["decay_rate"]
     arch_str = args_dict["arch_str"]
     lr_rate = args_dict["lr_rate"]
