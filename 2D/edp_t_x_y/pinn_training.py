@@ -13,22 +13,11 @@ parser = argparse.ArgumentParser()
 
 
 parser.add_argument(
-    "-n",
-    "--n_epochs",
+    "-d",
+    "--decay_rate",
     type=int,
     action="store",
-    dest="n_epochs",
-    required=True,
-    default=None,
-    help="",
-)
-
-parser.add_argument(
-    "-b",
-    "--batch_size",
-    type=int,
-    action="store",
-    dest="batch_size",
+    dest="decay_rate",
     required=True,
     default=None,
     help="",
@@ -45,6 +34,17 @@ parser.add_argument(
     help="",
 )
 
+parser.add_argument(
+    "-l",
+    "--lr_rate",
+    type=str,
+    action="store",
+    dest="lr_rate",
+    required=True,
+    default=None,
+    help="",
+)
+
 
 if __name__ == "__main__":
 
@@ -53,8 +53,9 @@ if __name__ == "__main__":
     args_dict = vars(args)
 
     n_epochs = args_dict["n_epochs"]
-    batch_size = args_dict["batch_size"]
+    decay_rate = args_dict["decay_rate"]
     arch_str = args_dict["arch_str"]
+    lr_rate = args_dict["lr_rate"]
 
     # Opening JSON file
     with open("control_dicts/constant_properties.json", "r") as openfile:
@@ -72,7 +73,6 @@ if __name__ == "__main__":
     Cn_max = constant_properties["Cn_max"]
     X_nb = constant_properties["X_nb"]
     central_ini_cond = constant_properties["central_ini_cond"]
-    ini_cond_var = constant_properties["ini_cond_var"]
 
     # Opening JSON file
     with open("control_dicts/mesh_properties.json", "r") as openfile:
@@ -85,21 +85,11 @@ if __name__ == "__main__":
     y_dom = mesh_properties["y_dom"]
     t_dom = mesh_properties["t_dom"]
 
-    Cn_list, Cb_list, speed_up_list = read_files("fvm_sim")
+    Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
 
-    Cp_fvm, Cl_fvm, center_x_array, center_y_array, radius_array = format_array(
-        [Cb_list[5]], [Cn_list[5]]
-    )
+    Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
 
-    reduced_Cp_fvm, _ = under_sampling(3000, Cp_fvm)
-    reduced_Cl_fvm, choosen_points = under_sampling(3000, Cl_fvm)
-
-    simp_Cp_fvm = simplify_mx(reduced_Cp_fvm)
-    simp_Cl_fvm = simplify_mx(reduced_Cl_fvm)
-
-    size_x, size_y, size_t, initial_cond = get_mesh_properties(
-        x_dom, y_dom, t_dom, h, k, central_ini_cond, ini_cond_var, Cp_fvm.shape[1]
-    )
+    size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
 
     (
         initial_tc,
@@ -110,6 +100,10 @@ if __name__ == "__main__":
         x_tc,
         y_tc,
         target,
+        reduced_t_tc,
+        reduced_x_tc,
+        reduced_y_tc,
+        reduced_target,
         device,
     ) = allocates_training_mesh(
         t_dom,
@@ -118,24 +112,24 @@ if __name__ == "__main__":
         size_t,
         size_x,
         size_y,
-        center_x_array,
-        center_y_array,
-        initial_cond,
-        radius_array,
-        simp_Cp_fvm,
-        simp_Cl_fvm,
-        choosen_points,
+        center[0],
+        center[1],
+        central_ini_cond,
+        radius,
+        Cp_fvm,
+        Cl_fvm,
+        3000,
     )
 
     model = generate_model(arch_str).to(device).apply(init_weights)
 
     print(model)
 
-    decay_rate = 0.9985
     val = 0.2
+    batch_size = int(len(t_tc) * (1 - val) / 10)
 
     trainer = train(
-        n_epochs=n_epochs,
+        n_epochs=300,
         batch_size=batch_size,
         decay_rate=decay_rate,
         model=model,
@@ -143,16 +137,18 @@ if __name__ == "__main__":
         center_x_tc=center_x_tc,
         center_y_tc=center_y_tc,
         radius_tc=radius_tc,
-        t_tc=t_tc,
-        x_tc=x_tc,
-        y_tc=y_tc,
-        target=target,
+        t_tc=reduced_t_tc,
+        x_tc=reduced_x_tc,
+        y_tc=reduced_y_tc,
+        target=reduced_target,
         device=device,
         n_points=batch_size,
         constant_properties=constant_properties,
         validation=val,
-        tolerance=0.01,
+        tolerance=0.02,
         patience=20,
+        normalize=True,
+        lr_rate=lr_rate,
     )
 
     (
@@ -169,7 +165,10 @@ if __name__ == "__main__":
     for param_tensor in model.state_dict():
         print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
-    pinn_file = "epochs_{}__batch_{}__arch_".format(n_epochs, batch_size) + arch_str
+    pinn_file = (
+        "decay_rates_{:.4}__lr_rates_{:.4}__arch_".format(decay_rate, lr_rate)
+        + arch_str
+    )
 
     cwd = os.getcwd()
 

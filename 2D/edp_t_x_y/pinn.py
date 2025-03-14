@@ -310,6 +310,13 @@ def generate_model(arch_str):
     return nn.Sequential(*modules)
 
 
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight)
+        if m.bias is not None:
+            torch.nn.init.zeros_(m.bias)
+
+
 class Scaler:
     def __init__(self):
 
@@ -575,7 +582,7 @@ class train:
     ):
 
         x_tc = torch.rand(num_points, 1, dtype=torch.float32).to(device)
-        
+
         y_tc = torch.rand(num_points, 1, dtype=torch.float32).to(device)
 
         # Calculate squared distances from each point to the circle centers
@@ -893,7 +900,9 @@ class train:
 
         del C_pred
 
-        return self.loss_initial + self.loss_pde + self.loss_boundary + self.loss_data
+        return (
+            50 * self.loss_initial + 50 * self.loss_pde + self.loss_boundary + self.loss_data
+        )
 
     def execute(
         self,
@@ -984,7 +993,7 @@ class train:
             C_data_loss_it,
             val_loss_it,
         )
-
+    
 
 def load_model(file_name, device):
     cwd = os.getcwd()
