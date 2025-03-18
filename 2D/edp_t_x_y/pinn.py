@@ -62,13 +62,10 @@ def format_array(Cp_file, Cl_file):
     with open(Cp_file, "rb") as f:
         Cp = pk.load(f)
 
-
     with open(Cl_file, "rb") as f:
         Cl = pk.load(f)
 
-
     center, radius = get_infection_site(Cp_file)
-
 
     return Cp, Cl, center, radius
 
@@ -109,9 +106,9 @@ def under_sampling(n_samples, Cl, Cp):
     reduced_Cp = np.zeros((n_samples, Cp.shape[1], Cl.shape[2]))
 
     for i, idx in enumerate(choosen_points):
-        
+
         reduced_Cl[i, :, :] = Cl[idx, :, :]
-        
+
         reduced_Cp[i, :, :] = Cp[idx, :, :]
 
     return reduced_Cl, reduced_Cp, choosen_points
@@ -143,7 +140,7 @@ def create_input_mesh(t_dom, x_dom, y_dom, size_t, size_x, size_y, choosen_point
         x_mesh,
         y_mesh,
     )
-    
+
 
 def allocates_training_mesh(
     t_dom,
@@ -355,8 +352,8 @@ class Scaler:
         self.dt_max = weights["max"]
 
         return
-    
- 
+
+
 class train:
     def __init__(
         self,
@@ -901,7 +898,10 @@ class train:
         del C_pred
 
         return (
-            50 * self.loss_initial + 50 * self.loss_pde + self.loss_boundary + self.loss_data
+            50 * self.loss_initial
+            + 50 * self.loss_pde
+            + self.loss_boundary
+            + self.loss_data
         )
 
     def execute(
@@ -993,7 +993,7 @@ class train:
             C_data_loss_it,
             val_loss_it,
         )
-    
+
 
 def load_model(file_name, device):
     cwd = os.getcwd()
