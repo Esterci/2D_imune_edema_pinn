@@ -116,7 +116,7 @@ def under_sampling(n_samples, Cl, Cp):
 
 def create_input_mesh(t_dom, x_dom, y_dom, size_t, size_x, size_y, choosen_points):
 
-    if choosen_points.any() == None:
+    if choosen_points[0] == None:
         t_np = np.linspace(
             t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
         )
