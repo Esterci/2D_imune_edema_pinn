@@ -23,7 +23,7 @@ def add_line(line, out):
 sim_list = glob.glob("nn_parameters/*")
 
 
-chunck_size = 100
+chunck_size = 1300
 
 v_gpu = [
     "MIG-bbc0f904-20ba-5ff0-aa76-754fa93730ba",
@@ -37,10 +37,8 @@ n_hd_layers = [3]
 n_neurons = [2**3, 2**4, 2**5]
 
 activation_func = [
-    "Elu",
-    "Sigmoid",
     "Tanh",
-    "ReLU",
+    "Softplus",
     "SiLU",
 ]
 
@@ -48,7 +46,7 @@ possible_layers = list(product(activation_func, n_neurons))
 
 decay_rates = np.linspace(0.95, 0.999, num=3, endpoint=True, dtype=np.float32)
 
-lr_rates = np.linspace(1e-4, 1e-3, num=4, endpoint=True, dtype=np.float32)
+lr_rates = np.linspace(1e-4, 1e-3, num=3, endpoint=True, dtype=np.float32)
 
 count = 0
 
@@ -106,11 +104,11 @@ for n_l in n_hd_layers:
                             "jobs/pinn_" + str(count // chunck_size) + ".job",
                         )
                         add_line(
-                            "# Run time (hh:mm:ss) - 4:00 hr",
+                            "# Run time (hh:mm:ss) - 100:00 hr",
                             "jobs/pinn_" + str(count // chunck_size) + ".job",
                         )
                         add_line(
-                            "#PBS -l walltime=4:00:00",
+                            "#PBS -l walltime=100:00:00",
                             "jobs/pinn_" + str(count // chunck_size) + ".job",
                         )
                         add_line(

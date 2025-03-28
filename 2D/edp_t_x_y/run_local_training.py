@@ -5,22 +5,23 @@ import numpy as np
 
 sim_list = glob.glob("nn_parameters/*")
 
-n_hd_layers = [4]
-n_neurons = [2**4, 2**3]  # , 2**4]
+n_hd_layers = [3]
+
+n_neurons = [2**3, 2**4, 2**5]
 
 activation_func = [
-    # "LeakyReLU",
-    # "Sigmoid",
-    # "Elu",
     "Tanh",
-    # "ReLU",
-    # "SiLU",
+    "Softplus",
+    "SiLU",
 ]
 
-
-batch_size = [(108000, 300)]  # , (50000, 1400)]
-
 possible_layers = list(product(activation_func, n_neurons))
+
+decay_rates = np.linspace(0.95, 0.999, num=3, endpoint=True, dtype=np.float32)
+
+lr_rates = np.linspace(1e-4, 1e-3, num=3, endpoint=True, dtype=np.float32)
+
+count = 0
 
 # writing jobs
 
@@ -33,30 +34,33 @@ for n_l in n_hd_layers:
         for layer in layers_comb:
             arch_str += layer[0] + "--" + str(layer[1]) + "__"
 
-        for batch in batch_size:
-            pinn_name = (
-                "nn_parameters/"
-                + "epochs_{}__batch_{}__arch_".format(batch[1], batch[0])
-                + arch_str
-            ) + ".pt"
+        for lr_rate in lr_rates:
 
-            print("=" * 20)
-            print(pinn_name)
-            print("\n")
-
-            if pinn_name not in sim_list:
-
-                os.system(
-                    (
-                        "time python3 pinn_training.py "
-                        + " -n "
-                        + str(int(batch[1]))
-                        + " -b "
-                        + str(int(batch[0]))
-                        + " -a "
-                        + arch_str
+            for decay_rate in decay_rates:
+                pinn_name = (
+                    "nn_parameters/"
+                    + "decay_rates_{:.4}__lr_rates_{:.4}__arch_".format(
+                        decay_rate, lr_rate
                     )
+                    + arch_str
+                    + ".pt"
                 )
 
-            else:
-                print("Already Trained")
+                if pinn_name not in sim_list:
+
+                    os.system(
+                        (
+                            "time python3 pinn_training.py "
+                            + " -d "
+                            + str(decay_rate)
+                            + " -l "
+                            + str(lr_rate)
+                            + " -a "
+                            + arch_str
+                        )
+                    )
+
+                    count += 1
+
+                else:
+                    print("Already Trained")

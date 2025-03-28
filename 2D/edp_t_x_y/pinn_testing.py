@@ -5,6 +5,7 @@ import os
 import json
 from pinn import *
 
+
 def load_model(file_name, device):
     cwd = os.getcwd()
 
@@ -84,6 +85,7 @@ t_dom = mesh_properties["t_dom"]
 
 Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
 
+
 Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
 
 
@@ -151,8 +153,8 @@ norm_y_tc = y_scaler.normalize(y_tc)
 norm_target = target_scaler.normalize(target)
 
 for nn_num, nn_file in enumerate(nn_list):
-    
-    if nn_file.split(".")[-1]=="pt":
+
+    if nn_file.split(".")[-1] == "pt":
 
         pinn_file = nn_file.split("nn_parameters/")[-1].split(".pt")[0]
 
@@ -164,7 +166,7 @@ for nn_num, nn_file in enumerate(nn_list):
 
         if pinn_file in run_list:
             print("Already evaluated")
-            
+
         else:
             model = load_model(nn_file, device)
 
@@ -206,7 +208,9 @@ for nn_num, nn_file in enumerate(nn_list):
 
                 speed_up_obj[i]["pinn_time"] = pinn_time
 
-                speed_up_obj[i]["speed_up_pinn"] = speed_up_obj[i]["serial_time"] / pinn_time
+                speed_up_obj[i]["speed_up_pinn"] = (
+                    speed_up_obj[i]["serial_time"] / pinn_time
+                )
 
                 output["mean_speed_up"].append(speed_up_obj[i]["speed_up"])
 
@@ -242,12 +246,19 @@ for nn_num, nn_file in enumerate(nn_list):
 
             max_ae = np.max(error.flatten())
 
-            prediction["pred_pinn"] = pred_pinn
-            prediction["target"] = norm_target.cpu().detach().numpy()
+            output["rmse"] = rmse
+
+            output["max_ae"] = max_ae
+
+            output["pinn_file"] = pinn_file
 
             print("Erro absoluto médio", rmse)
             print("Erro absoluto máximo", max_ae)
-            print("Speed Up: {} +/-{}".format(output["mean_speed_up"], output["std_speed_up"]))
+            print(
+                "Speed Up: {} +/-{}".format(
+                    output["mean_speed_up"], output["std_speed_up"]
+                )
+            )
             print(
                 "Compilation Speed Up: {} +/-{}".format(
                     output["mean_speed_comp_up"], output["std_speed_comp_up"]
@@ -263,6 +274,3 @@ for nn_num, nn_file in enumerate(nn_list):
                 # Reading from json file
                 pk.dump(output, openfile)
 
-            with open("pinn_sim/prediction_" + pinn_file + ".pkl", "wb") as openfile:
-                # Reading from json file
-                pk.dump(prediction, openfile)
