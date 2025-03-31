@@ -128,10 +128,13 @@ run_list = list(
     map(
         lambda file: file.split("pinn_sim/")[-1]
         .split(".pkl")[0]
-        .split("prediction_")[-1],
+        .split("output_")[-1],
         glob("pinn_sim/*"),
     )
 )
+
+print(run_list)
+
 
 total = len(nn_list)
 
@@ -157,6 +160,8 @@ for nn_num, nn_file in enumerate(nn_list):
     if nn_file.split(".")[-1] == "pt":
 
         pinn_file = nn_file.split("nn_parameters/")[-1].split(".pt")[0]
+        
+        print(pinn_file)
 
         print(f"\n{nn_num+1} of {total}")
 
