@@ -996,6 +996,7 @@ class train:
 
 
 def load_model(file_name, device):
+    print("entrou")
     cwd = os.getcwd()
 
     arch_str = (
@@ -1003,6 +1004,8 @@ def load_model(file_name, device):
         .join(file_name.split("/")[-1].split(".")[0].split("__")[2:])
         .split("arch_")[-1]
     )
+    
+    print("pinn: ",arch_str)
 
     model = generate_model(arch_str).to(device)
 

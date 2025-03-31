@@ -52,25 +52,6 @@ Cn_max = constant_properties["Cn_max"]
 X_nb = constant_properties["X_nb"]
 central_ini_cond = constant_properties["central_ini_cond"]
 
-
-# Opening JSON file
-with open("control_dicts/constant_properties.json", "r") as openfile:
-    # Reading from json file
-    constant_properties = json.load(openfile)
-
-Db = constant_properties["Db"]
-Dn = constant_properties["Dn"]
-phi = constant_properties["phi"]
-cb = constant_properties["cb"]
-lambd_nb = constant_properties["lambd_nb"]
-mi_n = constant_properties["mi_n"]
-lambd_bn = constant_properties["lambd_bn"]
-y_n = constant_properties["y_n"]
-Cn_max = constant_properties["Cn_max"]
-X_nb = constant_properties["X_nb"]
-central_ini_cond = constant_properties["central_ini_cond"]
-
-
 # Opening JSON file
 with open("control_dicts/mesh_properties.json", "r") as openfile:
     # Reading from json file
@@ -173,6 +154,7 @@ for nn_num, nn_file in enumerate(nn_list):
             print("Already evaluated")
 
         else:
+            print("pinn_testing: ",nn_file)
             model = load_model(nn_file, device)
 
             speed_up_obj = read_speed_ups(speed_up_list)
