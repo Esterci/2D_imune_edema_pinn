@@ -114,9 +114,6 @@ run_list = list(
     )
 )
 
-print(run_list)
-
-
 total = len(nn_list)
 
 target = target.cpu().detach()
