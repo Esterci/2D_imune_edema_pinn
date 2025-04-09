@@ -65,15 +65,15 @@ class ProgBar:
             sys.stdout.flush()
 
 
-def preencher_matriz_radialmente(tam_max):
+def preencher_matriz_radialmente(x_size, y_size):
     # Cria uma matriz de zeros com as dimensões fornecidas
-    matriz = np.zeros((tam_max, tam_max), dtype=int)
+    matriz = np.zeros((x_size, y_size), dtype=int)
 
     radius = 3
-    cx, cy = (tam_max // 2, tam_max // 2)
+    cx, cy = (x_size // 2, y_size // 2)
 
-    for i in range(tam_max):
-        for j in range(tam_max):
+    for i in range(x_size):
+        for j in range(y_size):
             # Calculate distance from center to each point
             if (i - cx) ** 2 + (j - cy) ** 2 <= radius**2:
                 matriz[i, j] = 1  # Set point inside the circle to 1
@@ -81,22 +81,23 @@ def preencher_matriz_radialmente(tam_max):
     return matriz
 
 
-def preencher_matriz_randomicamente(linhas, colunas):
+def preencher_matriz_randomicamente(x_size, y_size):
+
     # Cria uma matriz de zeros com as dimensões fornecidas
-    matriz = np.zeros((linhas, colunas), dtype=int)
+    matriz = np.zeros((x_size, y_size), dtype=int)
 
     # Calcula o número total de elementos a serem preenchidos com 1
-    total_elementos = linhas * colunas
+    total_elementos = x_size * y_size  # <-- FIXED this. Was x_size * x_size
+
     elementos_para_preencher = int(0.08 * total_elementos)
 
     # Gera índices aleatórios únicos para preenchimento
     np.random.seed(42)
-
     indices = np.random.choice(total_elementos, elementos_para_preencher, replace=False)
 
     # Converte os índices lineares em índices matriciais
     for index in indices:
-        i, j = divmod(index, colunas)
+        i, j = divmod(index, y_size)
         matriz[i, j] = 1
 
     return matriz
@@ -124,9 +125,6 @@ def init_mesh(
         + "__x_dom_max--"
         + str(x_dom[-1])
         + "__y_dom_min--"
-        + str(y_dom[0])
-        + "__y_dom_max--"
-        + str(y_dom[-1])
         + "__t_dom_min--"
         + str(t_dom[0])
         + "__t_dom_max--"
@@ -145,9 +143,9 @@ def init_mesh(
 
     if create_source:
         if source_type == "central":
-            leu_source_points = preencher_matriz_radialmente(size_x)
+            leu_source_points = preencher_matriz_radialmente(size_x, size_y)
         elif source_type == "random":
-            leu_source_points = preencher_matriz_randomicamente(size_x, size_x)
+            leu_source_points = preencher_matriz_randomicamente(size_x, size_y)
         else:
             print("Not implemented type")
             return

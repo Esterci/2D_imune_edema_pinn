@@ -2,7 +2,7 @@ from numba import cuda
 
 
 # Função que descreve a taxa de variação da concentração de bactérias (Cb)
-@cuda.jit(device=True)
+@cuda.jit(device=True, fastmath=True)
 def cu_fb(Cb, Cn, i, j, cb, lambd_nb):
     # O crescimento de bactérias é reduzido pela presença de neutrófilos (Cn)
     # por um fator lambd_nb
@@ -10,7 +10,7 @@ def cu_fb(Cb, Cn, i, j, cb, lambd_nb):
 
 
 # Função que descreve a taxa de variação da concentração de neutrófilos (Cn)
-@cuda.jit(device=True)
+@cuda.jit(device=True, fastmath=True)
 def cu_fn(Cb, Cn, source_points, i, j, y_n, Cn_max, lambd_bn, mi_n):
     # Crescimento dos neutrófilos depende da presença de bactérias (Cb)
     # Também considera uma taxa de decaimento natural (mi_n) e a interação com
@@ -23,10 +23,10 @@ def cu_fn(Cb, Cn, source_points, i, j, y_n, Cn_max, lambd_bn, mi_n):
 
 
 # Função para aplicar condições iniciais à concentração de bactérias (Cb)
-@cuda.jit(device=True)
-def cu_apply_initial_conditions(ini_cond, Cb, cx, cy, radius, tam_max):
-    for i in range(tam_max):
-        for j in range(tam_max):
+@cuda.jit(device=True, fastmath=True)
+def cu_apply_initial_conditions(ini_cond, Cb, cx, cy, radius, size_x, size_y):
+    for i in range(size_x):
+        for j in range(size_y):
             # Calculate distance from center to each point
             if (i - cx) ** 2 + (j - cy) ** 2 <= radius**2:
                 Cb[i][j] = ini_cond  # Set point inside the circle to 1
@@ -35,7 +35,7 @@ def cu_apply_initial_conditions(ini_cond, Cb, cx, cy, radius, tam_max):
 
 
 # Função principal para resolver as equações diferenciais parciais usando diferenças finitas
-@cuda.jit()
+@cuda.jit(fastmath=True)
 def cu_solve_pde(
     Cb_buf_0,
     Cn_buf_0,
@@ -75,7 +75,7 @@ def cu_solve_pde(
 
     # Aplicando condições iniciais para a concentração de bactérias
     Cb_buf_0 = cu_apply_initial_conditions(
-        initial_cond, Cb_buf_0, cx_disc, cy_disc, radius_disc, size_x
+        initial_cond, Cb_buf_0, cx_disc, cy_disc, radius_disc, size_x, size_y
     )
 
     # Armazenando as condições iniciais

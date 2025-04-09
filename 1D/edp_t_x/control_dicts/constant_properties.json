@@ -3,11 +3,11 @@
     "Dn": 0.0005,
     "phi": 0.2,
     "cb": 0.0001,
-    "lambd_nb": 1.8,
+    "lambd_nb": 2,
     "mi_n": 0.2,
     "lambd_bn": 0.1,
     "y_n": 0.1,
     "Cn_max": 0.5,
-    "X_nb": 1,
+    "X_nb": 0.1,
     "central_ini_cond": 0.5
 }

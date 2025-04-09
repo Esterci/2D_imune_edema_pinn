@@ -39,7 +39,7 @@ t_dom = mesh_properties["t_dom"]
 timestamp = time.time()
 
 # Generate random initial condition parameters
-center = (0.2, 0.8)
+center = (0.2, 0)
 radius = 0.13
 
 # Initialize mesh and related properties
@@ -52,7 +52,7 @@ size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
     center,
     radius,
     create_source=False,
-    source_type="central",
+    source_type="random",
 )
 
 print(f"Mesh initialized for iteration.")
@@ -81,7 +81,7 @@ Cb, Cn = solve_pde(
     central_ini_cond,
     center=center,
     radius=radius,
-    verbose=False,
+    verbose=True,
 )
 
 end = time.time()
@@ -98,7 +98,7 @@ with open(f"fvm_sim/Cl__{struct_name}__{str(timestamp)}.pkl", "wb") as f:
     pk.dump(Cn, f)
 
 # Define CUDA threads and blocks
-threadsperblock = (size_x // 2, size_y // 2)
+threadsperblock = (size_x // 2, 1)
 blockspergrid_x = math.ceil(size_x / threadsperblock[0])
 blockspergrid_y = math.ceil(size_y / threadsperblock[1])
 blockspergrid = (blockspergrid_x, blockspergrid_y)
@@ -227,9 +227,7 @@ print(f"Speed-up with compilation for iteration: {speed_comp_up:.2f}x")
 print(f"Speed-up for iteration: {speed_up:.2f}x")
 
 # Save speed-up
-with open(
-    "fvm_sim/speed_up__" + struct_name + "__" + str(timestamp) + ".pkl", "wb"
-) as f:
+with open("fvm_sim/speed_up__" + struct_name + "__" + str(timestamp) + ".pkl", "wb") as f:
     pk.dump(
         {
             "speed_comp_up": speed_comp_up,
