@@ -1,6 +1,7 @@
 import numpy as np
 import pickle as pk
 import time
+import matplotlib.pyplot as plt
 
 
 class ProgBar:
@@ -168,3 +169,78 @@ def init_mesh(
     )
 
     return (size_x, size_y, size_t, leu_source_points, struct_name)
+
+
+def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
+
+    t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
+    x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=True, dtype=np.float32)
+
+    # t_np, x_np, Cb, Cn, source_index already defined
+    # source_index is assumed to be an array of x positions only (1D or Nx1)
+
+    time_plot = np.linspace(0, size_t - 1, num=6, endpoint=True, dtype=int)
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
+
+    fig.suptitle(
+        "$\\bf{Resposta\\ Imunológica}$ — Evolução em 1D", fontsize=18, weight="bold"
+    )
+
+    colors = plt.cm.viridis(np.linspace(0, 1, len(time_plot)))
+
+    source_index = np.argwhere(leu_source_points[:, 0] == 1).ravel()
+
+    # Plot Cb
+    for i, time_inst in enumerate(time_plot):
+        axes[0].plot(
+            x_np,
+            Cb[time_inst].squeeze(),
+            label=f"t = {t_np[time_inst]:.2f}",
+            color=colors[i],
+            linewidth=2,
+            alpha=0.85,
+        )
+
+    axes[0].scatter(
+        x_np[source_index],  # assuming source_index is Nx2 still
+        np.zeros(source_index.shape),  # put the markers at the top for visibility
+        color="red",
+        label="Fontes",
+        s=40,
+        marker="x",
+    )
+
+    axes[0].set_title("$C_p$ ao longo de x", fontsize=14)
+    axes[0].set_ylabel("$C_p$", fontsize=12)
+    axes[0].legend()
+    axes[0].grid(True, linestyle="--", alpha=0.5)
+
+    # Plot Cn
+    for i, time_inst in enumerate(time_plot):
+        axes[1].plot(
+            x_np,
+            Cn[time_inst].squeeze(),
+            label=f"t = {t_np[time_inst]:.2f}",
+            color=colors[i],
+            linewidth=2,
+            alpha=0.85,
+        )
+
+    axes[1].scatter(
+        x_np[source_index],
+        np.zeros((len(source_index))),
+        color="red",
+        label="Fontes",
+        s=40,
+        marker="x",
+    )
+
+    axes[1].set_title("$C_n$ ao longo de x", fontsize=14)
+    axes[1].set_xlabel("x", fontsize=12)
+    axes[1].set_ylabel("$C_n$", fontsize=12)
+    axes[1].legend()
+    axes[1].grid(True, linestyle="--", alpha=0.5)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
