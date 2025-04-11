@@ -7,6 +7,7 @@ import json
 import math
 from utils import init_mesh
 from numba import cuda
+from fvm_animation import animate_1D_evolution
 
 # Load constant properties from JSON file
 with open("control_dicts/constant_properties.json", "r") as openfile:
@@ -238,6 +239,19 @@ with open("fvm_sim/speed_up__" + struct_name + "__" + str(timestamp) + ".pkl", "
         },
         f,
     )
+
+animate_1D_evolution(
+    size_t,
+    size_x,
+    t_dom,
+    x_dom,
+    Cb,
+    Cn,
+    leu_source_points,
+    (size_t - 1) // 100,
+    150,
+    name="evolucao_1D__" + str(end),
+)
 
 device = cuda.get_current_device()
 device.reset()

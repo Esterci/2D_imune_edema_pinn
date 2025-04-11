@@ -22,6 +22,7 @@ case "$1" in
     fvm)
         echo "Cleaning FVM simulation files..."
         find fvm_sim/ -type f -name "*.pkl" -delete
+        find fvm_animations/ -type f -name "*.mp4" -delete
         ;;
     pinn-training)
         echo "Cleaning PINN training files..."
