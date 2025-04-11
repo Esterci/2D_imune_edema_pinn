@@ -9,7 +9,17 @@ import matplotlib.animation as animation
 
 
 def animate_1D_evolution(
-    size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points, delta_t, frame_time
+    size_t,
+    size_x,
+    t_dom,
+    x_dom,
+    Cb,
+    Cn,
+    leu_source_points,
+    delta_t,
+    frame_time,
+    name="evolucao_1D",
+    show=False,
 ):
     """
     Gera uma animação que mostra a evolução de Cp e Cn em 1D ao longo do tempo.
@@ -40,7 +50,7 @@ def animate_1D_evolution(
     ax_cp.set_title("$C_p$ ao longo de x", fontsize=14)
     ax_cp.grid(True, linestyle="--", alpha=0.5)
     ax_cp.set_xlim(0, 1)
-    ax_cp.set_ylim(0, np.max(Cp_fvm) * 1.1)
+    ax_cp.set_ylim(0, np.max(Cb) * 1.1)
     ax_cp.legend()
 
     # Segundo subplot: Cn
@@ -59,7 +69,7 @@ def animate_1D_evolution(
     ax_cn.set_title("$C_n$ ao longo de x", fontsize=14)
     ax_cn.grid(True, linestyle="--", alpha=0.5)
     ax_cn.set_xlim(0, 1)
-    ax_cn.set_ylim(0, np.max(Cl_fvm) * 1.1)
+    ax_cn.set_ylim(0, np.max(Cn) * 1.1)
     ax_cn.legend()
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
@@ -104,9 +114,10 @@ def animate_1D_evolution(
 
     # Salvar como vídeo MP4 (necessita FFmpeg instalado):
 
-    plt.show()
+    if show:
+        plt.show()
 
-    ani.save("evolucao_1D.mp4", fps=5)
+    ani.save("fvm_animations/" + name + ".mp4", fps=5)
 
 
 # Exemplo de uso (assumindo que Cb.shape = (size_t, size_x) etc.):
@@ -144,7 +155,7 @@ if __name__ == "__main__":
 
     Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
 
-    Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[7], Cl_list[7])
+    Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
 
     size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
 
@@ -152,5 +163,14 @@ if __name__ == "__main__":
         leu_source_points = pk.load(f)
 
     animate_1D_evolution(
-        size_t, size_x, t_dom, x_dom, Cp_fvm, Cl_fvm, leu_source_points, 500, 150
+        size_t,
+        size_x,
+        t_dom,
+        x_dom,
+        Cp_fvm,
+        Cl_fvm,
+        leu_source_points,
+        5000,
+        150,
+        show=True,
     )
