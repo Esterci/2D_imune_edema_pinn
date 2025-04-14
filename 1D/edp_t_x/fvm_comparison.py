@@ -40,7 +40,7 @@ t_dom = mesh_properties["t_dom"]
 timestamp = time.time()
 
 # Generate random initial condition parameters
-center = (0.2, 0)
+center = (0.3, 0)
 radius = 0.13
 
 # Initialize mesh and related properties
