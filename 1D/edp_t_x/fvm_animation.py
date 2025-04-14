@@ -31,7 +31,7 @@ def animate_1D_evolution(
     """
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
-    x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=True, dtype=np.float32)
+    x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32)
 
     # Converte leu_source_points para índices (caso seja um array Nx1 de 0/1)
     # Se já estiver pronto, pode ajustar conforme sua lógica
