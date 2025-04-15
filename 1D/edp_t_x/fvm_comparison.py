@@ -56,6 +56,8 @@ size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
     source_type="random",
 )
 
+leu_source_points = np.ones((size_x, size_y), dtype=int)
+
 print(f"Mesh initialized for iteration.")
 
 start = time.time()

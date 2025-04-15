@@ -10,4 +10,4 @@
 *.o
 *.pt
 /2D/edp_time/__pycache__
-
+*.mp4
