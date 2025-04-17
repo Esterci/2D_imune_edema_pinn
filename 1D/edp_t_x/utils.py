@@ -138,8 +138,8 @@ def init_mesh(
 
     print("struct_name: ", struct_name)
 
-    size_x = int(((x_dom[1] - x_dom[0]) / (h)) )
-    size_y = int(((y_dom[1] - y_dom[0]) / (h)) )
+    size_x = int(((x_dom[1] - x_dom[0]) / (h)) + 1)
+    size_y = int(((y_dom[1] - y_dom[0]) / (h)) + 1)
     size_t = int(((t_dom[1] - t_dom[0]) / (k)) + 1)
 
     if create_source:
