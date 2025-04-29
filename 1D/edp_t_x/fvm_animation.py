@@ -5,8 +5,6 @@ from pinn import *
 import pickle as pk
 import matplotlib.animation as animation
 
-import matplotlib.animation as animation
-
 
 def animate_1D_evolution(
     size_t,

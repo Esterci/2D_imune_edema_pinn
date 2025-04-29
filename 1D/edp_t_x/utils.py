@@ -66,6 +66,13 @@ class ProgBar:
             sys.stdout.flush()
 
 
+def preencher_matriz_uniforme(x_size, y_size):
+    # Cria uma matriz de zeros com as dimensões fornecidas
+    matriz = np.ones((x_size, y_size), dtype=int)
+
+    return matriz
+
+
 def preencher_matriz_radialmente(x_size, y_size):
     # Cria uma matriz de zeros com as dimensões fornecidas
     matriz = np.zeros((x_size, y_size), dtype=int)
@@ -138,8 +145,8 @@ def init_mesh(
 
     print("struct_name: ", struct_name)
 
-    size_x = int(((x_dom[1] - x_dom[0]) / (h)) + 1)
-    size_y = int(((y_dom[1] - y_dom[0]) / (h)) + 1)
+    size_x = int(((x_dom[1] - x_dom[0]) / (h)))
+    size_y = int(((y_dom[1] - y_dom[0]) / (h)))
     size_t = int(((t_dom[1] - t_dom[0]) / (k)) + 1)
 
     if create_source:
@@ -147,6 +154,8 @@ def init_mesh(
             leu_source_points = preencher_matriz_radialmente(size_x, size_y)
         elif source_type == "random":
             leu_source_points = preencher_matriz_randomicamente(size_x, size_y)
+        elif source_type == "uniform":
+            leu_source_points = preencher_matriz_uniforme(size_x, size_y)
         else:
             print("Not implemented type")
             return
@@ -174,7 +183,9 @@ def init_mesh(
 def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
-    x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32)
+    x_np = np.linspace(
+        x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
+    )
 
     # t_np, x_np, Cb, Cn, source_index already defined
     # source_index is assumed to be an array of x positions only (1D or Nx1)
