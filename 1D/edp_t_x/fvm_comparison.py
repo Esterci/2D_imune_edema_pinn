@@ -40,8 +40,8 @@ t_dom = mesh_properties["t_dom"]
 timestamp = time.time()
 
 # Generate random initial condition parameters
-center = (0.3, 0)
-radius = 0.13
+center = (0.35, 0)
+radius = 0.15
 
 # Initialize mesh and related properties
 size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
@@ -53,7 +53,6 @@ size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
     center,
     radius,
     create_source=False,
-    source_type="central",
 )
 
 print(f"Mesh initialized for iteration.")
@@ -82,14 +81,14 @@ Cb, Cn = solve_pde(
     central_ini_cond,
     center=center,
     radius=radius,
-    verbose=True,
+    verbose=False,
 )
 
 end = time.time()
 
 serial_time = end - start
 
-print(f"Serial computation time for iteration: {serial_time:.2f} seconds.")
+print(f"Serial computation time for iteration: {serial_time:.6f} seconds.")
 
 # Save results of serial computation
 with open(f"fvm_sim/Cp__{struct_name}__{str(timestamp)}.pkl", "wb") as f:
@@ -99,7 +98,7 @@ with open(f"fvm_sim/Cl__{struct_name}__{str(timestamp)}.pkl", "wb") as f:
     pk.dump(Cn, f)
 
 # Define CUDA threads and blocks
-threadsperblock = (size_x // 2, 1)
+threadsperblock = (size_x, 1)
 blockspergrid_x = math.ceil(size_x / threadsperblock[0])
 blockspergrid_y = math.ceil(size_y / threadsperblock[1])
 blockspergrid = (blockspergrid_x, blockspergrid_y)
@@ -217,18 +216,20 @@ end = time.time()
 cuda_time = end - start
 
 print(
-    f"CUDA computation time with compilation for iteration: {cuda_comp_time:.2f} seconds."
+    f"CUDA computation time with compilation for iteration: {cuda_comp_time:.6f} seconds."
 )
-print(f"CUDA computation time for iteration: {cuda_time:.2f} seconds.")
+print(f"CUDA computation time for iteration: {cuda_time:.6f} seconds.")
 
 # Compute speed-up factor and store it
 speed_comp_up = serial_time / cuda_comp_time
 speed_up = serial_time / cuda_time
-print(f"Speed-up with compilation for iteration: {speed_comp_up:.2f}x")
-print(f"Speed-up for iteration: {speed_up:.2f}x")
+print(f"Speed-up with compilation for iteration: {speed_comp_up:.6f}x")
+print(f"Speed-up for iteration: {speed_up:.6f}x")
 
 # Save speed-up
-with open("fvm_sim/speed_up__" + struct_name + "__" + str(timestamp) + ".pkl", "wb") as f:
+with open(
+    "fvm_sim/speed_up__" + struct_name + "__" + str(timestamp) + ".pkl", "wb"
+) as f:
     pk.dump(
         {
             "speed_comp_up": speed_comp_up,

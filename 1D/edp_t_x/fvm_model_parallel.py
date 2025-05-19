@@ -193,4 +193,3 @@ def cu_solve_pde(
         Cn_final[time][i][j] = Cn_new[i][j]
 
         grid.sync()
-        
