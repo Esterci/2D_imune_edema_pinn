@@ -34,7 +34,7 @@ def preencher_matriz_randomicamente(x_size, y_size):
     # Calcula o número total de elementos a serem preenchidos com 1
     total_elementos = x_size * y_size  # <-- FIXED this. Was x_size * x_size
 
-    elementos_para_preencher = int(0.08 * total_elementos)
+    elementos_para_preencher = int(0.2 * total_elementos)
 
     # Gera índices aleatórios únicos para preenchimento
     np.random.seed(42)
@@ -120,9 +120,7 @@ def init_mesh(
 def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
-    x_np = np.linspace(
-        x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
-    )
+    x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32)
 
     # t_np, x_np, Cb, Cn, source_index already defined
     # source_index is assumed to be an array of x positions only (1D or Nx1)
