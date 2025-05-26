@@ -1,5 +1,3 @@
-import numpy
-import torch
 import pickle as pk
 import os
 import json
@@ -9,19 +7,8 @@ import argparse
 # Parsing model parameters
 
 parser = argparse.ArgumentParser(description="", add_help=False)
+
 parser = argparse.ArgumentParser()
-
-
-parser.add_argument(
-    "-d",
-    "--decay_rate",
-    type=float,
-    action="store",
-    dest="decay_rate",
-    required=True,
-    default=None,
-    help="",
-)
 
 parser.add_argument(
     "-a",
@@ -35,11 +22,22 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "-l",
-    "--lr_rate",
+    "-b1",
+    "--beta1",
     type=float,
     action="store",
-    dest="lr_rate",
+    dest="beta1",
+    required=True,
+    default=None,
+    help="",
+)
+
+parser.add_argument(
+    "-b2",
+    "--beta2",
+    type=float,
+    action="store",
+    dest="beta2",
     required=True,
     default=None,
     help="",
@@ -52,9 +50,11 @@ if __name__ == "__main__":
 
     args_dict = vars(args)
 
-    decay_rate = args_dict["decay_rate"]
     arch_str = args_dict["arch_str"]
-    lr_rate = args_dict["lr_rate"]
+
+    beta1 = args_dict["beta1"]
+
+    beta2 = args_dict["beta2"]
 
     # Opening JSON file
     with open("control_dicts/constant_properties.json", "r") as openfile:
@@ -84,118 +84,165 @@ if __name__ == "__main__":
     y_dom = mesh_properties["y_dom"]
     t_dom = mesh_properties["t_dom"]
 
+
     Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
 
     Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
 
     size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
 
+    with open("source_points/lymph_vessels.pkl", "rb") as f:
+        leu_source_points = pk.load(f)
+
     (
         initial_tc,
         center_x_tc,
-        center_y_tc,
         radius_tc,
-        t_tc,
-        x_tc,
-        y_tc,
+        data_tc,
+        src_tc,
         target,
-        reduced_t_tc,
-        reduced_x_tc,
-        reduced_y_tc,
-        reduced_target,
         device,
     ) = allocates_training_mesh(
         t_dom,
         x_dom,
-        y_dom,
         size_t,
         size_x,
-        size_y,
         center[0],
-        center[1],
         central_ini_cond,
         radius,
         Cp_fvm,
         Cl_fvm,
-        3000,
+        leu_source_points,
+    )
+    
+    n_epochs = int(1e4)
+
+    batch_size = int(1e4)
+    
+    hidden_layer = [int(n_neurons) for n_neurons in arch_str.split("__")[1:]]
+
+    dtype = torch.float32
+
+    model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
+
+    arch_str = ""
+
+    for hd in hidden_layer:
+        arch_str += "__" + str(hd)
+
+    pinn_file = "beta1_{}__beta2_{}".format(beta1, beta2) + arch_str
+
+
+    print("\n" + pinn_file)
+
+    print("=" * 20)
+
+    print(
+        "Number of parameters",
+        sum(p.numel() for p in model.parameters() if p.requires_grad),
     )
 
-    model = generate_model(arch_str).to(device).apply(init_weights)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(beta1, beta2))
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=0.9999,
+        patience=1000,
+        threshold=1e-3,
+        threshold_mode="rel",
+        cooldown=0,
+        min_lr=1e-5,
+        eps=1e-08,
+    )
 
-    print(model)
-
-    val = 0.2
-    batch_size = int(len(t_tc) * (1 - val) / 10)
-
-    trainer = train(
-        n_epochs=300,
+    trainer = Trainer(
+        n_epochs=n_epochs,
         batch_size=batch_size,
-        decay_rate=decay_rate,
         model=model,
-        initial_tc=initial_tc,
-        center_x_tc=center_x_tc,
-        center_y_tc=center_y_tc,
-        radius_tc=radius_tc,
-        t_tc=reduced_t_tc,
-        x_tc=reduced_x_tc,
-        y_tc=reduced_y_tc,
-        target=reduced_target,
         device=device,
-        n_points=batch_size,
+        target=target,
+        data=data_tc,
+        patience=5000,
+        tolerance=0.01,
+        validation=0.2,
+        optimizer=optimizer,
+        scheduler=lr_scheduler,
+        print_steps=2000,
         constant_properties=constant_properties,
-        validation=val,
-        tolerance=0.02,
-        patience=20,
-        normalize=True,
-        lr_rate=lr_rate,
     )
 
-    (
-        model,
-        C_pde_loss_it,
-        C_boundary_loss_it,
-        C_initial_loss_it,
-        C_data_loss_it,
-        val_loss_it,
-    ) = trainer.execute()
+
+    init_loss = LOSS_INITIAL(
+        batch_size=batch_size,
+        device=device,
+        loss="RMSE",
+        name="LossInital",
+    )
+
+    init_loss.setBatchGenerator(generate_initial_points, center_x_tc, radius_tc, initial_tc)
+
+    trainer.add_loss(init_loss)
+
+
+    bnd_loss = LOSS_PINN(
+        batch_size=batch_size,
+        device=device,
+        loss="RMSE",
+        name="LossBoundary",
+    )
+
+    bnd_loss.setBatchGenerator(generate_boundary_points)
+
+    bnd_loss.setPinnFunction(boundary_condition, Dn, X_nb, Db, device)
+
+    trainer.add_loss(bnd_loss)
+
+
+    pde_loss = LOSS_PINN(
+        batch_size=batch_size,
+        device=device,
+        loss="RMSE",
+        name="LossPDE",
+    )
+
+    pde_loss.setBatchGenerator(generate_pde_points)
+
+    original_source = torch.tensor(leu_source_points).to(device)
+
+    pde_loss.setPinnFunction(
+        pde,
+        h,
+        cb,
+        phi,
+        lambd_nb,
+        Db,
+        y_n,
+        Cn_max,
+        lambd_bn,
+        mi_n,
+        Dn,
+        X_nb,
+        original_source,
+        device,
+    )
+
+    trainer.add_loss(pde_loss, 5)
+
+    model, loss_dict = trainer.train()
 
     # Print model's state_dict
     print("Model's state_dict:")
     for param_tensor in model.state_dict():
         print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
-    pinn_file = (
-        "decay_rates_{:.4}__lr_rates_{:.4}__arch_".format(decay_rate, lr_rate)
-        + arch_str
-    )
-
     cwd = os.getcwd()
 
     torch.save(model.state_dict(), cwd + "/nn_parameters/" + pinn_file + ".pt")
 
-    with open("learning_curves/C_pde_loss_it_" + pinn_file + ".pkl", "wb") as openfile:
+    with open("learning_curves/" + pinn_file + ".pkl", "wb") as openfile:
         # Reading from json file
-        pk.dump(C_pde_loss_it.cpu().numpy(), openfile)
+        pk.dump(loss_dict, openfile)
 
-    with open(
-        "learning_curves/C_boundary_loss_it_" + pinn_file + ".pkl", "wb"
-    ) as openfile:
-        # Reading from json file
-        pk.dump(C_boundary_loss_it.cpu().numpy(), openfile)
-
-    with open(
-        "learning_curves/C_initial_loss_it_" + pinn_file + ".pkl", "wb"
-    ) as openfile:
-        # Reading from json file
-        pk.dump(C_initial_loss_it.cpu().numpy(), openfile)
-
-    with open("learning_curves/C_data_loss_it_" + pinn_file + ".pkl", "wb") as openfile:
-        # Reading from json file
-        pk.dump(C_data_loss_it.cpu().numpy(), openfile)
-
-    with open("learning_curves/val_loss_it_" + pinn_file + ".pkl", "wb") as openfile:
-        # Reading from json file
-        pk.dump(val_loss_it.cpu().numpy(), openfile)
 
     del model
     del trainer
