@@ -36,11 +36,12 @@ case "$1" in
     all)
         echo "Cleaning all files..."
         find error_files/ -type f -name "*.e" -delete
-        find fvm_sim/ -type f -name "*.pkl" -delete
         find jobs/ -type f -name "*.job" -delete
+        find output_files/ -type f -name "*.o" -delete
+        find fvm_sim/ -type f -name "*.pkl" -delete
+        find fvm_animations/ -type f -name "*.mp4" -delete
         find learning_curves/ -type f -name "*.pkl" -delete
         find nn_parameters/ -type f -name "*.pt" -delete
-        find output_files/ -type f -name "*.o" -delete
         find pinn_sim/ -type f -name "*.pkl" -delete
         ;;
     *)

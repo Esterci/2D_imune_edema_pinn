@@ -19,10 +19,13 @@ def add_line(line, out, line_break=True):
 
 
 v_gpu = [
-    "MIG-bbc0f904-20ba-5ff0-aa76-754fa93730ba",
-    "MIG-5e5f0459-057d-5c61-b065-68892d1d27df",
-    "MIG-6d453f0c-ca44-53ae-947c-52497b81d66b",
-    "MIG-fad1c2a5-0979-5cbb-b4db-06a50630487c",
+    "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
+    "MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
+    "MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
+    "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
+    "MIG-275c5d7e-981d-5f7a-b45b-0659ba9ad13a",
+    "MIG-3aad3b21-c6f1-5b32-9d6b-1341d2b38d11",
+    "MIG-f946a009-bfbb-5335-89ba-7f3ac431bf10",
 ]
 
 

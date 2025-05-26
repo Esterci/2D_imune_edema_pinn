@@ -1,6 +1,5 @@
-from itertools import product
-import numpy as np
 import glob
+import numpy as np
 
 
 def add_line(line, out):
@@ -23,55 +22,43 @@ def add_line(line, out):
 sim_list = glob.glob("nn_parameters/*")
 
 
-chunck_size = 1300
+chunck_size = 35
 
 v_gpu = [
-    "MIG-bbc0f904-20ba-5ff0-aa76-754fa93730ba",
-    "MIG-5e5f0459-057d-5c61-b065-68892d1d27df",
-    "MIG-6d453f0c-ca44-53ae-947c-52497b81d66b",
-    "MIG-fad1c2a5-0979-5cbb-b4db-06a50630487c",
+    "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
+    "MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
+    "MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
+    "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
+    "MIG-275c5d7e-981d-5f7a-b45b-0659ba9ad13a",
+    "MIG-3aad3b21-c6f1-5b32-9d6b-1341d2b38d11",
+    "MIG-f946a009-bfbb-5335-89ba-7f3ac431bf10",
 ]
 
-n_hd_layers = [3]
+
+n_hd_layers = [5, 6, 7]
 
 n_neurons = [2**3, 2**4, 2**5]
 
-activation_func = [
-    "Tanh",
-    "Softplus",
-    "SiLU",
-]
+betas1 = np.linspace(0.6, 0.9, num=5, endpoint=True, dtype=np.float32)
 
-possible_layers = list(product(activation_func, n_neurons))
-
-decay_rates = np.linspace(0.95, 0.999, num=3, endpoint=True, dtype=np.float32)
-
-lr_rates = np.linspace(1e-4, 1e-3, num=3, endpoint=True, dtype=np.float32)
+betas2 = np.linspace(0.99, 0.9999, num=5, endpoint=True, dtype=np.float32)
 
 count = 0
 
 # writing jobs
 
 for n_l in n_hd_layers:
-    layers_combinations = product(possible_layers, repeat=n_l)
+    for n_n in n_neurons:
 
-    for layers_comb in product(possible_layers, repeat=n_l):
         arch_str = ""
 
-        for layer in layers_comb:
-            arch_str += layer[0] + "--" + str(layer[1]) + "__"
+        for _ in range(n_l):
+            arch_str += "__" + str(n_n)
 
-        for lr_rate in lr_rates:
+        for b1 in betas1:
+            for b2 in betas2:
 
-            for decay_rate in decay_rates:
-                pinn_name = (
-                    "nn_parameters/"
-                    + "decay_rates_{:.4}__lr_rates_{:.4}__arch_".format(
-                        decay_rate, lr_rate
-                    )
-                    + arch_str
-                    + ".pt"
-                )
+                pinn_name = "beta1_{}__beta2_{}".format(b1, b2) + arch_str + ".pt"
 
                 if pinn_name not in sim_list:
                     if count % chunck_size == 0:
@@ -144,12 +131,12 @@ for n_l in n_hd_layers:
 
                     add_line(
                         "time ~/.conda/envs/pyTourch/bin/python3 pinn_training.py "
-                        + " -d "
-                        + str(decay_rate)
-                        + " -l "
-                        + str(lr_rate)
                         + " -a "
-                        + arch_str,
+                        + str(arch_str)
+                        + " -b1 "
+                        + str(b1)
+                        + " -b2 "
+                        + str(b2),
                         "jobs/pinn_" + str(count // chunck_size) + ".job",
                     )
 

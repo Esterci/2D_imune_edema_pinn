@@ -1,20 +1,13 @@
 import os
 import glob
-from itertools import product
 import numpy as np
 import time
 
 sim_list = glob.glob("nn_parameters/*")
 
-n_hd_layers = [3]
+n_hd_layers = [5, 6, 7]
 
 n_neurons = [2**3, 2**4, 2**5]
-
-activation_func = [
-    "Tanh",
-    "Softplus",
-    "SiLU",
-]
 
 betas1 = np.linspace(0.6, 0.9, num=5, endpoint=True, dtype=np.float32)
 
@@ -25,14 +18,12 @@ count = 0
 # writing jobs
 
 for n_l in n_hd_layers:
-    layers_combinations = list(product(n_neurons, repeat=n_l))
-
-    for layers_comb in layers_combinations:
+    for n_n in n_neurons:
 
         arch_str = ""
 
-        for layer in layers_comb:
-            arch_str += "__" + str(layer)
+        for _ in range(n_l):
+            arch_str += "__" + str(n_n)
 
         for b1 in betas1:
             for b2 in betas2:
@@ -61,7 +52,7 @@ for n_l in n_hd_layers:
 
                 else:
                     print("Already Trained")
-                    
+
                 break
             break
         break
