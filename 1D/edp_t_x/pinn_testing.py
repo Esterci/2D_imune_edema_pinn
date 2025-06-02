@@ -4,18 +4,16 @@ import pickle as pk
 import os
 import json
 from pinn import *
+from fisiocomPinn.Net import *
 
 
 def load_model(file_name, device):
     cwd = os.getcwd()
 
-    arch_str = (
-        ("__")
-        .join(file_name.split("/")[-1].split(".pt")[0].split("__")[2:])
-        .split("arch_")[-1]
-    )
-
-    model = generate_model(arch_str).to(device)
+    hidden_layer = [int(n_neurons) for n_neurons in file_name.split("beta2_")[-1].split(".pt")[0].split("__")[1:]]
+    
+    dtype = torch.float32
+    model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
 
     model.load_state_dict(
         torch.load(cwd + "/" + file_name, weights_only=True, map_location=device)
@@ -23,7 +21,7 @@ def load_model(file_name, device):
 
     print(model.eval())
 
-    return model
+    return model.to(device)
 
 
 def read_speed_ups(speed_up_list):
@@ -66,48 +64,41 @@ t_dom = mesh_properties["t_dom"]
 
 Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
 
-
 Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
-
 
 size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
 
+with open("source_points/lymph_vessels.pkl", "rb") as f:
+    leu_source_points = pk.load(f)
 
 (
     initial_tc,
     center_x_tc,
-    center_y_tc,
     radius_tc,
-    t_tc,
-    x_tc,
-    y_tc,
+    data_tc,
+    src_tc,
     target,
-    reduced_t_tc,
-    reduced_x_tc,
-    reduced_y_tc,
-    reduced_target,
     device,
 ) = allocates_training_mesh(
     t_dom,
     x_dom,
-    y_dom,
     size_t,
     size_x,
-    size_y,
     center[0],
-    center[1],
     central_ini_cond,
     radius,
     Cp_fvm,
     Cl_fvm,
-    3000,
+    leu_source_points,
 )
 
 
 nn_list = glob("nn_parameters/*")
 run_list = list(
     map(
-        lambda file: file.split("pinn_sim/")[-1].split(".pkl")[0].split("output_")[-1],
+        lambda file: file.split("pinn_sim/")[-1]
+        .split(".pkl")[0]
+        .split("prediction_")[-1],
         glob("pinn_sim/*"),
     )
 )
@@ -116,28 +107,11 @@ total = len(nn_list)
 
 target = target.cpu().detach()
 
-t_scaler = Scaler()
-x_scaler = Scaler()
-y_scaler = Scaler()
-target_scaler = Scaler()
-
-t_scaler.fit(t_tc)
-x_scaler.fit(x_tc)
-y_scaler.fit(y_tc)
-target_scaler.fit(target)
-
-norm_t_tc = t_scaler.normalize(t_tc)
-norm_x_tc = x_scaler.normalize(x_tc)
-norm_y_tc = y_scaler.normalize(y_tc)
-norm_target = target_scaler.normalize(target)
-
 for nn_num, nn_file in enumerate(nn_list):
 
     if nn_file.split(".")[-1] == "pt":
 
         pinn_file = nn_file.split("nn_parameters/")[-1].split(".pt")[0]
-
-        print(pinn_file)
 
         print(f"\n{nn_num+1} of {total}")
 
@@ -149,7 +123,6 @@ for nn_num, nn_file in enumerate(nn_list):
             print("Already evaluated")
 
         else:
-            print("pinn_testing: ", nn_file)
             model = load_model(nn_file, device)
 
             speed_up_obj = read_speed_ups(speed_up_list)
@@ -177,10 +150,12 @@ for nn_num, nn_file in enumerate(nn_list):
 
                 start = time.time()
 
-                mesh = torch.cat([norm_t_tc, norm_x_tc, norm_y_tc], dim=1).to(device)
+                mesh = data_tc.to(device)
 
                 with torch.no_grad():
                     pred_pinn_dev = model(mesh)
+
+                pred_pinn = pred_pinn_dev.cpu().detach().numpy()
 
                 pred_pinn = pred_pinn_dev.cpu().detach().numpy()
 
@@ -206,33 +181,31 @@ for nn_num, nn_file in enumerate(nn_list):
 
                 output["mean_pinn_time"].append(speed_up_obj[i]["pinn_time"])
 
-                aux = ((pred_pinn - norm_target.cpu().detach().numpy()) ** 2) ** 0.5
+                aux = ((pred_pinn - target.cpu().detach().numpy()) ** 2) ** 0.5
 
                 error[i] = aux[:, 0] + aux[:, 1]
 
+            rmse = np.mean(error.flatten())
+
+            max_ae = np.max(error.flatten())
+            
             output["std_speed_up"] = np.std(output["mean_speed_up"])
             output["std_speed_comp_up"] = np.std(output["mean_speed_comp_up"])
             output["std_speed_up_pinn"] = np.std(output["mean_speed_up_pinn"])
             output["std_serial_time"] = np.std(output["mean_serial_time"])
             output["std_cuda_time"] = np.std(output["mean_cuda_time"])
             output["std_pinn_time"] = np.std(output["mean_pinn_time"])
-
             output["mean_speed_up"] = np.mean(output["mean_speed_up"])
             output["mean_speed_comp_up"] = np.mean(output["mean_speed_comp_up"])
             output["mean_speed_up_pinn"] = np.mean(output["mean_speed_up_pinn"])
             output["mean_serial_time"] = np.mean(output["mean_serial_time"])
             output["mean_cuda_time"] = np.mean(output["mean_cuda_time"])
             output["mean_pinn_time"] = np.mean(output["mean_pinn_time"])
-
-            rmse = np.mean(error.flatten())
-
-            max_ae = np.max(error.flatten())
-
             output["rmse"] = rmse
-
             output["max_ae"] = max_ae
 
-            output["pinn_file"] = pinn_file
+            prediction["pred_pinn"] = pred_pinn
+            prediction["target"] = target.cpu().detach().numpy()
 
             print("Erro absoluto médio", rmse)
             print("Erro absoluto máximo", max_ae)
@@ -255,3 +228,7 @@ for nn_num, nn_file in enumerate(nn_list):
             with open("pinn_sim/output_" + pinn_file + ".pkl", "wb") as openfile:
                 # Reading from json file
                 pk.dump(output, openfile)
+
+            with open("pinn_sim/prediction_" + pinn_file + ".pkl", "wb") as openfile:
+                # Reading from json file
+                pk.dump(prediction, openfile)
