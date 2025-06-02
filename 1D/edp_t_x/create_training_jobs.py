@@ -130,7 +130,7 @@ for n_l in n_hd_layers:
                         )
 
                     add_line(
-                        "time ~/.conda/envs/pyTourch/bin/python3 pinn_training.py "
+                        "time ~/.conda/envs/torch-numba-11/bin/python3 pinn_training.py "
                         + " -a "
                         + str(arch_str)
                         + " -b1 "
