@@ -21,7 +21,7 @@ def add_line(line, out):
 
 chunck_size = 2
 
-node = "nodes=compute-1-0"
+node = "nodes=compute-1-1"
 
 os.system("rm jobs/pinn_*")
 

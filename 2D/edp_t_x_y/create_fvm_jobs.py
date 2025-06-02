@@ -57,7 +57,7 @@ add_line(
     "jobs/fvm_comp.job",
 )
 add_line(
-    "#PBS -l nodes=compute-1-0:ppn=128",
+    "#PBS -l nodes=compute-1-1:ppn=128",
     "jobs/fvm_comp.job",
 )
 add_line(
