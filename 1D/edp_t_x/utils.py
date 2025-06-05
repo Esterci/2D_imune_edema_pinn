@@ -3,6 +3,7 @@ import pickle as pk
 import time
 import matplotlib.pyplot as plt
 
+
 def preencher_matriz_uniforme(x_size, y_size):
     # Cria uma matriz de zeros com as dimensões fornecidas
     matriz = np.ones((x_size, y_size), dtype=int)
@@ -26,26 +27,54 @@ def preencher_matriz_radialmente(x_size, y_size):
     return matriz
 
 
-def preencher_matriz_randomicamente(x_size, y_size):
+def preencher_matriz_randomicamente(x_size, y_size, x_dom, percent, source_behavior):
 
     # Cria uma matriz de zeros com as dimensões fornecidas
-    matriz = np.zeros((x_size, y_size), dtype=int)
+    matriz = np.zeros((x_size, y_size), dtype=float)
+
+    coordinates = np.zeros((x_size, y_size), dtype=float)
 
     # Calcula o número total de elementos a serem preenchidos com 1
     total_elementos = x_size * y_size  # <-- FIXED this. Was x_size * x_size
 
-    elementos_para_preencher = int(0.2 * total_elementos)
+    elementos_para_preencher = int(percent * total_elementos)
 
     # Gera índices aleatórios únicos para preenchimento
-    np.random.seed(42)
+
     indices = np.random.choice(total_elementos, elementos_para_preencher, replace=False)
 
-    # Converte os índices lineares em índices matriciais
-    for index in indices:
-        i, j = divmod(index, y_size)
-        matriz[i, j] = 1
+    if source_behavior == "boolean":
 
-    return matriz
+        # Converte os índices lineares em índices matriciais
+        for index in indices:
+            i, j = divmod(index, y_size)
+            matriz[i, j] = 1
+
+        return matriz
+
+    elif source_behavior == "gaussian":
+
+        x_np = np.linspace(
+            x_dom[0], x_dom[-1], num=x_size, endpoint=False, dtype=np.float32
+        )
+
+        # Converte os índices lineares em índices matriciais
+        for index in indices:
+            i, j = divmod(index, y_size)
+            x_center = x_np[i]
+
+            gaussian = np.exp(-(((x_np - x_center) * 60) ** 2)) / 2
+
+            coordinates[i, j] = 1
+
+            matriz[:, j] += gaussian
+
+        return (matriz, coordinates)
+
+    else:
+        print("Source type not implemented")
+
+        return
 
 
 def init_mesh(
@@ -58,6 +87,8 @@ def init_mesh(
     radius,
     create_source=False,
     source_type="central",
+    source_behavior="boolean",
+    percent=0.2,
     verbose=False,
 ):
     struct_name = (
@@ -90,7 +121,9 @@ def init_mesh(
         if source_type == "central":
             leu_source_points = preencher_matriz_radialmente(size_x, size_y)
         elif source_type == "random":
-            leu_source_points = preencher_matriz_randomicamente(size_x, size_y)
+            leu_source_points = preencher_matriz_randomicamente(
+                size_x, size_y, x_dom, percent, source_behavior
+            )
         elif source_type == "uniform":
             leu_source_points = preencher_matriz_uniforme(size_x, size_y)
         else:
@@ -120,7 +153,9 @@ def init_mesh(
 def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
-    x_np = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32)
+    x_np = np.linspace(
+        x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
+    )
 
     # t_np, x_np, Cb, Cn, source_index already defined
     # source_index is assumed to be an array of x positions only (1D or Nx1)
@@ -190,6 +225,7 @@ def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
+
 
 import matplotlib.animation as animation
 
