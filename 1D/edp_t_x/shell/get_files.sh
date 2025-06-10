@@ -9,3 +9,5 @@ scp $CLUSTER_USER@$CLUSTER_DNS:/home/thiago.esterci/2D_imune_edema_pinn/1D/edp_t
 scp $CLUSTER_USER@$CLUSTER_DNS:/home/thiago.esterci/2D_imune_edema_pinn/1D/edp_t_x/nn_parameters/* ./nn_parameters
 scp $CLUSTER_USER@$CLUSTER_DNS:/home/thiago.esterci/2D_imune_edema_pinn/1D/edp_t_x/output_files/* ./output_files
 scp $CLUSTER_USER@$CLUSTER_DNS:/home/thiago.esterci/2D_imune_edema_pinn/1D/edp_t_x/pinn_sim/* ./pinn_sim
+scp $CLUSTER_USER@$CLUSTER_DNS:/home/thiago.esterci/2D_imune_edema_pinn/1D/edp_t_x/scale_weights/* ./scale_weights
+scp $CLUSTER_USER@$CLUSTER_DNS:/home/thiago.esterci/2D_imune_edema_pinn/1D/edp_t_x/source_points/* ./source_points
