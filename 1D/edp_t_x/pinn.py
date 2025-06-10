@@ -123,14 +123,27 @@ def under_sampling(n_samples, Cl, Cp):
 
 
 def create_input_mesh(
-    source, t_dom, x_dom, size_t, size_x, n_samples=None, Cl_fvm=None, Cp_fvm=None
+    source,
+    t_dom,
+    x_dom,
+    size_t,
+    size_x,
+    Cl_fvm,
+    Cp_fvm,
+    n_samples=None,
 ):
+
+    if len(source) == 2:
+        source_index = np.argwhere(source[1][:, 0] == 1).ravel()
+
+    else:
+        source_index = np.argwhere(source[:, 0] == 1).ravel()
 
     x_np = np.linspace(
         x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
     )
 
-    x_idx = np.linspace(0, size_x, num=size_x, endpoint=False, dtype=int)
+    source_coordinates = x_np[source_index]
 
     if n_samples:
 
@@ -142,42 +155,29 @@ def create_input_mesh(
             t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32
         )[choosen_points]
 
-        x_idx_mesh, t_mesh = np.meshgrid(
-            x_idx,
+        x_mesh, t_mesh = np.meshgrid(
+            x_np,
             t_np,
         )
-
-        x_mesh = np.zeros_like(t_mesh)
-        source_mesh = np.zeros_like(t_mesh)
-
-        x_mesh = x_np[x_idx_mesh.ravel()]
-        source_mesh = source[x_idx_mesh.ravel()]
 
         return (
             reduced_Cl,
             reduced_Cp,
             t_mesh,
             x_mesh,
-            source_mesh,
         )
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
 
-    x_idx_mesh, t_mesh = np.meshgrid(
-        x_idx,
+    x_mesh, t_mesh = np.meshgrid(
+        x_np,
         t_np,
     )
-
-    x_mesh = np.zeros_like(t_mesh)
-    source_mesh = np.zeros_like(t_mesh)
-
-    x_mesh = x_np[x_idx_mesh.ravel()]
-    source_mesh = source[x_idx_mesh.ravel()]
 
     return (
         t_mesh,
         x_mesh,
-        source_mesh,
+        source_coordinates,
     )
 
 
@@ -189,8 +189,8 @@ def allocates_training_mesh(
     center_x,
     initial_cond,
     radius,
-    Cp_fvm,
     Cl_fvm,
+    Cp_fvm,
     source,
     n_samples=None,
 ):
@@ -198,8 +198,16 @@ def allocates_training_mesh(
     (
         t_mesh,
         x_mesh,
-        src_mesh,
-    ) = create_input_mesh(source, t_dom, x_dom, size_t, size_x)
+        src_coordinates,
+    ) = create_input_mesh(
+        source,
+        t_dom,
+        x_dom,
+        size_t,
+        size_x,
+        Cl_fvm,
+        Cp_fvm,
+    )
 
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -230,8 +238,10 @@ def allocates_training_mesh(
     data_tc = torch.cat([t_tc, x_tc], dim=1).requires_grad_(True).to(device)
 
     src_tc = (
-        torch.tensor(src_mesh, dtype=torch.float32).reshape(-1, 1).requires_grad_(True)
-    )
+        torch.tensor(src_coordinates, dtype=torch.float32)
+        .reshape(-1, 1)
+        .requires_grad_(True)
+    ).to(device)
 
     target = torch.tensor(
         np.array([Cl_fvm.flatten(), Cp_fvm.flatten()]).T,
@@ -245,16 +255,15 @@ def allocates_training_mesh(
             reduced_Cp,
             reduced_t_mesh,
             reduced_x_mesh,
-            reduced_src_mesh,
         ) = create_input_mesh(
             source,
             t_dom,
             x_dom,
             size_t,
             size_x,
-            n_samples,
             Cl_fvm,
             Cp_fvm,
+            n_samples,
         )
 
         reduced_t_tc = torch.tensor(reduced_t_mesh, dtype=torch.float32).reshape(-1, 1)
@@ -265,12 +274,6 @@ def allocates_training_mesh(
             torch.cat([reduced_t_tc, reduced_x_tc], dim=1)
             .requires_grad_(True)
             .to(device)
-        )
-
-        reduced_src_tc = (
-            torch.tensor(reduced_src_mesh, dtype=torch.float32)
-            .reshape(-1, 1)
-            .requires_grad_(True)
         )
 
         reduced_target = torch.tensor(
@@ -286,7 +289,6 @@ def allocates_training_mesh(
             src_tc,
             target,
             reduced_data_tc,
-            reduced_src_tc,
             reduced_target,
             device,
         )
@@ -394,31 +396,15 @@ def boundary_condition(pred, batch, Dn, X_nb, Db, device):
     return torch.cat([Cl_boundary, Cp_boundary], dim=1)
 
 
-def generate_pde_source(original_source, h, batch, device):
+def generate_pde_source(source_coordinates, batch):
 
     _, x_batch = batch.tensor_split(2, dim=1)  # [B, 1]
-    x_domain = torch.arange(0, 1, h).view(-1, 1).to(device)  # [N, 1]
 
-    # Identify active source locations in x_domain
-    source_locs = x_domain[original_source.view(-1) == 1]  # shape [M, 1], where M ≤ N
-    source_locs
+    diff = x_batch - source_coordinates.T  # [B,M] Because source_coordinates is Mx1
 
-    # Compute bounds
-    l_bound = source_locs - h  # [M, 1]
-    u_bound = source_locs + h  # [M, 1]
-
-    # Broadcast and check
-    x_batch_exp = x_batch[:, None, :]  # [B, 1, 1]
-    l_bound_exp = l_bound[None, :, :]  # [1, M, 1]
-    u_bound_exp = u_bound[None, :, :]  # [1, M, 1]
-
-    # Check if x_batch[i] is within any [l_bound[j], u_bound[j]]
-    in_range = (x_batch_exp > l_bound_exp) & (x_batch_exp < u_bound_exp)  # [B, M, 1]
-    match = in_range.any(dim=1)  # [B, 1]
-
-    # Generate new source
-    new_source = torch.zeros_like(x_batch)
-    new_source[match] = 1.0
+    new_source = torch.sum(
+        torch.exp(-((diff * 60) ** 2)) / 2, dim=1, keepdim=True
+    )  # [B,1]
 
     return new_source
 
@@ -426,7 +412,6 @@ def generate_pde_source(original_source, h, batch, device):
 def pde(
     pred,
     batch,
-    h,
     cb,
     phi,
     lambd_nb,
@@ -437,8 +422,7 @@ def pde(
     mi_n,
     Dn,
     X_nb,
-    original_source,
-    device
+    source_coordinates,
 ):
 
     dCl = torch.autograd.grad(
@@ -483,7 +467,7 @@ def pde(
 
     # Calculating Cl value
 
-    source = generate_pde_source(original_source, h, batch, device)
+    source = generate_pde_source(source_coordinates, batch)
 
     qn = y_n * pred[:, 1:2] * (Cn_max - pred[:, 0:1]) * source  # [1000, 1]
     rn = lambd_bn * pred[:, 0:1] * pred[:, 1:2] + mi_n * pred[:, 0:1]  # [1000, 1]
@@ -545,7 +529,6 @@ class Trainer:
         batch_size,
         model,
         device,
-        constant_properties,
         target=[],
         data=[],
         patience=300,
@@ -559,7 +542,6 @@ class Trainer:
 
         self.model = model.to(device)
         self.device = device
-        self.constant_properties = constant_properties
         self.validation = validation
         self.tolerance = tolerance
         self.patience = patience
@@ -630,6 +612,7 @@ class Trainer:
         loss_dict["val"] = []
 
         patience_count = 0
+        val_min = torch.tensor([1000])
         val_loss = torch.tensor([1000])
 
         for it in range(self.n_it):
@@ -674,9 +657,8 @@ class Trainer:
 
             # Computing validation loss
 
-            if it % self.val_steps:
+            if it % self.val_steps // self.n_batchs:
                 with torch.no_grad():
-                    val_old = val_loss
 
                     val_loss = torch.mean(
                         torch.sum(
@@ -691,14 +673,18 @@ class Trainer:
 
                 if self.tolerance and self.validation:
 
-                    if (
-                        abs(val_old.item() - val_loss.item()) / val_old.item()
-                        < self.tolerance
-                    ):
-                        patience_count += 1
+                    if val_loss.item() < val_min.item() * (1 - self.tolerance):
+
+                        val_min = val_loss
+
+                        patience_count = 0
+
+                        best_state = self.model.state_dict()
+
+                        it_break = it
 
                     else:
-                        patience_count = 0
+                        patience_count += 1
 
                     if patience_count >= self.patience:
 
@@ -712,7 +698,9 @@ class Trainer:
                             )
                         )
 
-                        print("Early break!")
+                        self.model.load_state_dict(best_state)
+
+                        print("Early break on iteration: ", it_break)
 
                         break
 
