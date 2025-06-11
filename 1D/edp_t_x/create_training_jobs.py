@@ -6,13 +6,10 @@ from itertools import product
 
 
 v_gpu = [
-    "MIG-a444fcc0-f725-530b-9ffb-97805cefb734",
-    "MIG-10685134-19fb-5361-83da-7bdc9b8242ba",
-    "MIG-a5ff4856-76ba-5d4a-bc36-d6c908a95b14",
-    "MIG-d65b56b1-2519-5354-96ae-aec5f0e41128",
-    "MIG-275c5d7e-981d-5f7a-b45b-0659ba9ad13a",
-    "MIG-3aad3b21-c6f1-5b32-9d6b-1341d2b38d11",
-    "MIG-f946a009-bfbb-5335-89ba-7f3ac431bf10",
+    "MIG-365f9ce1-c091-57a7-8ef3-4cbb45dcca47",
+    "MIG-40144944-d4a9-585d-978e-1ace55172139",
+    "MIG-0ebc0c9f-adc4-59a6-af10-200d49046bb5",
+    "MIG-effedeec-21b5-5ad2-904d-f4d06708ac4d",
 ]
 
 parser = argparse.ArgumentParser(description="", add_help=False)
@@ -232,7 +229,7 @@ def combination_loop(
     betas2,
     chunck_size,
 ):
-    count=0
+    count = 0
     all_combinations = []
 
     for n_layers in n_hd_layers:
@@ -285,7 +282,6 @@ def combination_loop(
     print(jobs)
 
     return 0
-
 
 
 if __name__ == "__main__":
