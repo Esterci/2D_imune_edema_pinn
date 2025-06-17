@@ -59,7 +59,7 @@ def write_setup():
 
     else:
         print("The fvm job does not exist")
-    
+
     add_line("#!/bin/bash", "jobs/fvm_comp.job")
     add_line(
         "#----------------------------------------------------------",
@@ -108,6 +108,10 @@ def write_setup():
     )
     add_line(
         "# Launch Thiago-based executable",
+        "jobs/fvm_comp.job",
+    )
+    add_line(
+        "export CUDA_VISIBLE_DEVICES=GPU-fd7e14c3-91ce-6c4b-e736-393c0d0537ef",
         "jobs/fvm_comp.job",
     )
 
