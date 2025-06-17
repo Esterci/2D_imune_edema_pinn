@@ -56,13 +56,74 @@ if __name__ == "__main__":
 
     beta2 = args_dict["beta2"]
 
-    n_samples = int(2.5e2)
+    # Opening JSON file
+    with open("control_dicts/constant_properties.json", "r") as openfile:
+        # Reading from json file
+        constant_properties = json.load(openfile)
 
+    Db = constant_properties["Db"]
+    Dn = constant_properties["Dn"]
+    phi = constant_properties["phi"]
+    cb = constant_properties["cb"]
+    lambd_nb = constant_properties["lambd_nb"]
+    mi_n = constant_properties["mi_n"]
+    lambd_bn = constant_properties["lambd_bn"]
+    y_n = constant_properties["y_n"]
+    Cn_max = constant_properties["Cn_max"]
+    X_nb = constant_properties["X_nb"]
+    central_ini_cond = constant_properties["central_ini_cond"]
+
+    # Opening JSON file
+    with open("control_dicts/mesh_properties.json", "r") as openfile:
+        # Reading from json file
+        mesh_properties = json.load(openfile)
+
+    h = mesh_properties["h"]
+    k = mesh_properties["k"]
+    x_dom = mesh_properties["x_dom"]
+    y_dom = mesh_properties["y_dom"]
+    t_dom = mesh_properties["t_dom"]
+
+
+    Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
+
+    Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
+
+    size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
+
+    with open("source_points/lymph_vessels.pkl", "rb") as f:
+        leu_source_points = pk.load(f)
+
+    (
+        initial_tc,
+        center_x_tc,
+        radius_tc,
+        data_tc,
+        src_tc,
+        target,
+        device,
+    ) = allocates_training_mesh(
+        t_dom,
+        x_dom,
+        size_t,
+        size_x,
+        center[0],
+        central_ini_cond,
+        radius,
+        Cp_fvm,
+        Cl_fvm,
+        leu_source_points,
+    )
+    
     n_epochs = int(1e4)
 
     batch_size = int(1e4)
-
+    
     hidden_layer = [int(n_neurons) for n_neurons in arch_str.split("__")[1:]]
+
+    dtype = torch.float32
+
+    model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
 
     arch_str = ""
 
@@ -71,182 +132,117 @@ if __name__ == "__main__":
 
     pinn_file = "beta1_{}__beta2_{}".format(beta1, beta2) + arch_str
 
-    try:
-        with open("learning_curves/" + pinn_file + ".pkl", "rb") as openfile:
-            # Reading from json file
-            loss_dict = pk.load(openfile)
-        print("Already Trained")
 
-    except:
-        # Opening JSON file
-        with open("control_dicts/constant_properties.json", "r") as openfile:
-            # Reading from json file
-            constant_properties = json.load(openfile)
+    print("\n" + pinn_file)
 
-        Db = constant_properties["Db"]
-        Dn = constant_properties["Dn"]
-        phi = constant_properties["phi"]
-        cb = constant_properties["cb"]
-        lambd_nb = constant_properties["lambd_nb"]
-        mi_n = constant_properties["mi_n"]
-        lambd_bn = constant_properties["lambd_bn"]
-        y_n = constant_properties["y_n"]
-        Cn_max = constant_properties["Cn_max"]
-        X_nb = constant_properties["X_nb"]
-        central_ini_cond = constant_properties["central_ini_cond"]
+    print("=" * 20)
 
-        # Opening JSON file
-        with open("control_dicts/mesh_properties.json", "r") as openfile:
-            # Reading from json file
-            mesh_properties = json.load(openfile)
+    print(
+        "Number of parameters",
+        sum(p.numel() for p in model.parameters() if p.requires_grad),
+    )
 
-        h = mesh_properties["h"]
-        k = mesh_properties["k"]
-        x_dom = mesh_properties["x_dom"]
-        y_dom = mesh_properties["y_dom"]
-        t_dom = mesh_properties["t_dom"]
+    optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(beta1, beta2))
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=0.9999,
+        patience=1000,
+        threshold=1e-3,
+        threshold_mode="rel",
+        cooldown=0,
+        min_lr=1e-5,
+        eps=1e-08,
+    )
 
-        Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
+    trainer = Trainer(
+        n_epochs=n_epochs,
+        batch_size=batch_size,
+        model=model,
+        device=device,
+        target=target,
+        data=data_tc,
+        patience=5000,
+        tolerance=0.01,
+        validation=0.2,
+        optimizer=optimizer,
+        scheduler=lr_scheduler,
+        print_steps=2000,
+        constant_properties=constant_properties,
+    )
 
-        Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
 
-        size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
+    init_loss = LOSS_INITIAL(
+        batch_size=batch_size,
+        device=device,
+        loss="RMSE",
+        name="LossInital",
+    )
 
-        with open("source_points/lymph_vessels.pkl", "rb") as f:
-            leu_source_points = pk.load(f)
+    init_loss.setBatchGenerator(generate_initial_points, center_x_tc, radius_tc, initial_tc)
 
-        (
-            initial_tc,
-            center_x_tc,
-            radius_tc,
-            _,
-            src_tc,
-            _,
-            reduced_data_tc,
-            reduced_target,
-            device,
-        ) = allocates_training_mesh(
-            t_dom,
-            x_dom,
-            size_t,
-            size_x,
-            center[0],
-            central_ini_cond,
-            radius,
-            Cl_fvm,
-            Cp_fvm,
-            leu_source_points,
-            n_samples,
-        )
+    trainer.add_loss(init_loss)
 
-        dtype = torch.float32
 
-        model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
+    bnd_loss = LOSS_PINN(
+        batch_size=batch_size,
+        device=device,
+        loss="RMSE",
+        name="LossBoundary",
+    )
 
-        print("\n" + pinn_file)
+    bnd_loss.setBatchGenerator(generate_boundary_points)
 
-        print("=" * 20)
+    bnd_loss.setPinnFunction(boundary_condition, Dn, X_nb, Db, device)
 
-        print(
-            "Number of parameters",
-            sum(p.numel() for p in model.parameters() if p.requires_grad),
-        )
+    trainer.add_loss(bnd_loss)
 
-        optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(beta1, beta2))
 
-        lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode="min",
-            factor=0.9999,
-            patience=1000,
-            threshold=1e-3,
-            threshold_mode="rel",
-            cooldown=0,
-            min_lr=1e-5,
-            eps=1e-08,
-        )
+    pde_loss = LOSS_PINN(
+        batch_size=batch_size,
+        device=device,
+        loss="RMSE",
+        name="LossPDE",
+    )
 
-        trainer = Trainer(
-            n_epochs=n_epochs,
-            batch_size=batch_size,
-            model=model,
-            device=device,
-            target=reduced_target,
-            data=reduced_data_tc,
-            patience=2750,
-            tolerance=0.01,
-            validation=0.2,
-            optimizer=optimizer,
-            scheduler=lr_scheduler,
-            print_steps=2000,
-        )
+    pde_loss.setBatchGenerator(generate_pde_points)
 
-        init_loss = LOSS_INITIAL(
-            batch_size=batch_size,
-            device=device,
-            loss="RMSE",
-            name="LossInital",
-        )
+    original_source = torch.tensor(leu_source_points).to(device)
 
-        init_loss.setBatchGenerator(
-            generate_initial_points, center_x_tc, radius_tc, initial_tc
-        )
+    pde_loss.setPinnFunction(
+        pde,
+        h,
+        cb,
+        phi,
+        lambd_nb,
+        Db,
+        y_n,
+        Cn_max,
+        lambd_bn,
+        mi_n,
+        Dn,
+        X_nb,
+        original_source,
+        device,
+    )
 
-        trainer.add_loss(init_loss)
+    trainer.add_loss(pde_loss, 5)
 
-        bnd_loss = LOSS_PINN(
-            batch_size=batch_size,
-            device=device,
-            loss="RMSE",
-            name="LossBoundary",
-        )
+    model, loss_dict = trainer.train()
 
-        bnd_loss.setBatchGenerator(generate_boundary_points)
+    # Print model's state_dict
+    print("Model's state_dict:")
+    for param_tensor in model.state_dict():
+        print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
-        bnd_loss.setPinnFunction(boundary_condition, Dn, X_nb, Db, device)
+    cwd = os.getcwd()
 
-        trainer.add_loss(bnd_loss)
+    torch.save(model.state_dict(), cwd + "/nn_parameters/" + pinn_file + ".pt")
 
-        pde_loss = LOSS_PINN(
-            batch_size=batch_size,
-            device=device,
-            loss="RMSE",
-            name="LossPDE",
-        )
+    with open("learning_curves/" + pinn_file + ".pkl", "wb") as openfile:
+        # Reading from json file
+        pk.dump(loss_dict, openfile)
 
-        pde_loss.setBatchGenerator(generate_pde_points)
 
-        pde_loss.setPinnFunction(
-            pde,
-            cb,
-            phi,
-            lambd_nb,
-            Db,
-            y_n,
-            Cn_max,
-            lambd_bn,
-            mi_n,
-            Dn,
-            X_nb,
-            src_tc,
-        )
-
-        trainer.add_loss(pde_loss, 5)
-
-        model, loss_dict = trainer.train()
-
-        # Print model's state_dict
-        print("Model's state_dict:")
-        for param_tensor in model.state_dict():
-            print(param_tensor, "\t", model.state_dict()[param_tensor].size())
-
-        cwd = os.getcwd()
-
-        torch.save(model.state_dict(), cwd + "/nn_parameters/" + pinn_file + ".pt")
-
-        with open("learning_curves/" + pinn_file + ".pkl", "wb") as openfile:
-            # Reading from json file
-            pk.dump(loss_dict, openfile)
-
-        del model
-        del trainer
+    del model
+    del trainer
