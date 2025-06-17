@@ -64,7 +64,7 @@ start = time.time()
 # Solve PDE for each initial condition in serial mode
 
 Cb, Cn = solve_pde(
-    leu_source_points[0],
+    leu_source_points,
     size_t,
     size_x,
     size_y,
@@ -112,7 +112,7 @@ start = time.time()
 # Initialize device arrays for concentrations and sources
 Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
 Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-device_leu_source = cuda.to_device(leu_source_points[0])
+device_leu_source = cuda.to_device(leu_source_points)
 
 # Additional buffers for synchronization
 Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
@@ -168,7 +168,7 @@ start = time.time()
 # Initialize device arrays for concentrations and sources
 Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
 Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-device_leu_source = cuda.to_device(leu_source_points[0])
+device_leu_source = cuda.to_device(leu_source_points)
 
 # Additional buffers for synchronization
 Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
@@ -242,19 +242,6 @@ with open(
         },
         f,
     )
-
-animate_1D_evolution(
-    size_t,
-    size_x,
-    t_dom,
-    x_dom,
-    Cb,
-    Cn,
-    leu_source_points[1],
-    (size_t - 1) // 500,
-    75,
-    name="evolucao_1D__" + str(end),
-)
 
 device = cuda.get_current_device()
 device.reset()
