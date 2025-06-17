@@ -5,7 +5,7 @@ import time
 
 sim_list = glob.glob("nn_parameters/*")
 
-n_hd_layers = [7]
+n_hd_layers = [6]
 
 n_neurons = [2**5]
 

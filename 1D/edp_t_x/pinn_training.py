@@ -169,6 +169,7 @@ if __name__ == "__main__":
         scheduler=lr_scheduler,
         print_steps=2000,
         constant_properties=constant_properties,
+        print_steps = 100
     )
 
 
