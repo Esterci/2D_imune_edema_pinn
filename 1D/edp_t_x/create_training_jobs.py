@@ -6,10 +6,7 @@ from itertools import product
 
 
 v_gpu = [
-    "MIG-365f9ce1-c091-57a7-8ef3-4cbb45dcca47",
-    "MIG-40144944-d4a9-585d-978e-1ace55172139",
-    "MIG-0ebc0c9f-adc4-59a6-af10-200d49046bb5",
-    "MIG-effedeec-21b5-5ad2-904d-f4d06708ac4d",
+    "GPU-066bf92c-88d1-5e53-5153-dbfa04fc2b73"
 ]
 
 parser = argparse.ArgumentParser(description="", add_help=False)
@@ -137,7 +134,7 @@ def write_setup(count, chunck_size):
         "jobs/pinn_" + str(count // chunck_size) + ".job",
     )
     add_line(
-        "#PBS -l nodes=compute-1-1:ppn=1",
+        "#PBS -l nodes=compute-0-3:ppn=4",
         "jobs/pinn_" + str(count // chunck_size) + ".job",
     )
     add_line(
