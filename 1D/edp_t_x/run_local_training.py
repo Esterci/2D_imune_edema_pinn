@@ -53,9 +53,5 @@ for n_l in n_hd_layers:
                 else:
                     print("Already Trained")
 
-                break
-            break
-        break
-    break
 
 print(count)
