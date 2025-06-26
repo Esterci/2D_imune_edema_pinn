@@ -140,7 +140,7 @@ def write_setup(count, chunck_size):
         "jobs/pinn_" + str(count // chunck_size) + ".job",
     )
     add_line(
-        "#PBS -l nodes=compute-0-3:ppn=4",
+        "#PBS -l nodes=compute-1-0:ppn=18",
         "jobs/pinn_" + str(count // chunck_size) + ".job",
     )
     add_line(
