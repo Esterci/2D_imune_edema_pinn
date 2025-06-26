@@ -6,8 +6,13 @@ from itertools import product
 
 
 v_gpu = [
-    "GPU-8c36d9dd-4315-583f-c95d-c0e7575f3433",
-    "GPU-3abe7f07-d793-14fa-a218-bf805e641e63",
+    "MIG-5a2715b5-94cb-52c7-9277-ab14d8ff7a83",
+    "MIG-a546e4e2-39c8-5533-b038-1003be6edb85",
+    "MIG-de784377-11af-5b3f-bdc3-471bf95fa524",
+    "MIG-ee23fa18-b1b2-51c3-8dc2-2dcfef8ff850",
+    "MIG-5a5a74b5-4644-59ac-b603-52015ee50b13",
+    "MIG-b4d02ac1-b388-5287-8ce4-bceddc3d2cbb",
+    "MIG-de11c256-929e-5df4-80bd-ea658c06177a",
 ]
 
 parser = argparse.ArgumentParser(description="", add_help=False)
