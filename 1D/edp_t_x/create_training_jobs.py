@@ -5,7 +5,10 @@ import os
 from itertools import product
 
 
-v_gpu = ["GPU-066bf92c-88d1-5e53-5153-dbfa04fc2b73"]
+v_gpu = [
+    "GPU-8c36d9dd-4315-583f-c95d-c0e7575f3433",
+    "GPU-3abe7f07-d793-14fa-a218-bf805e641e63",
+]
 
 parser = argparse.ArgumentParser(description="", add_help=False)
 parser = argparse.ArgumentParser()
