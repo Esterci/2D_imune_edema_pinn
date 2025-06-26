@@ -325,7 +325,7 @@ def plot_comparison(
         marker="x",
     )
 
-    axes[1, 0].set_title("$C_p$ ao longo de x, FVM", fontsize=14)
+    axes[1, 0].set_title("$C_p$ ao longo de x, PINN", fontsize=14)
     axes[1, 0].set_ylabel("$C_p$", fontsize=12)
     axes[1, 0].legend()
     axes[1, 0].grid(True, linestyle="--", alpha=0.5)
@@ -350,7 +350,7 @@ def plot_comparison(
         marker="x",
     )
 
-    axes[1, 1].set_title("$C_n$ ao longo de x, FVM", fontsize=14)
+    axes[1, 1].set_title("$C_n$ ao longo de x, PINN", fontsize=14)
     axes[1, 1].set_xlabel("x", fontsize=12)
     axes[1, 1].set_ylabel("$C_n$", fontsize=12)
     axes[1, 1].legend()

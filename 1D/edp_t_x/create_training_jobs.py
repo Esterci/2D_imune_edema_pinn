@@ -5,9 +5,7 @@ import os
 from itertools import product
 
 
-v_gpu = [
-    "GPU-066bf92c-88d1-5e53-5153-dbfa04fc2b73"
-]
+v_gpu = ["GPU-066bf92c-88d1-5e53-5153-dbfa04fc2b73"]
 
 parser = argparse.ArgumentParser(description="", add_help=False)
 parser = argparse.ArgumentParser()
@@ -295,9 +293,9 @@ if __name__ == "__main__":
 
     sim_list = glob.glob("nn_parameters/*")
 
-    n_hd_layers = [5, 6, 7]
+    n_hd_layers = [6, 7]
 
-    n_neurons = [2**3, 2**4, 2**5]
+    n_neurons = [2**3, 2**4, 2**5, 2**6]
 
     betas1 = np.linspace(0.6, 0.9, num=5, endpoint=True, dtype=np.float32)
 

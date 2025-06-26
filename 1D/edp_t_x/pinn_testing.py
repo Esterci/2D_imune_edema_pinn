@@ -157,8 +157,6 @@ for nn_num, nn_file in enumerate(nn_list):
 
                 pred_pinn = pred_pinn_dev.cpu().detach().numpy()
 
-                pred_pinn = pred_pinn_dev.cpu().detach().numpy()
-
                 end = time.time()
 
                 pinn_time = end - start
