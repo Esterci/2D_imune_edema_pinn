@@ -2,6 +2,8 @@ import numpy as np
 import pickle as pk
 import time
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
 
 
 def preencher_matriz_uniforme(x_size, y_size):
@@ -225,9 +227,6 @@ def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
-
-
-import matplotlib.animation as animation
 
 
 def plot_comparison(
@@ -514,3 +513,124 @@ def animate_1D_comparison(
         plt.show()
 
     ani.save("fvm_animations/" + name + ".mp4", fps=5)
+
+
+def plot_comparison_pinn(
+    size_t,
+    size_x,
+    t_dom,
+    x_dom,
+    Cb,
+    Cn,
+    Cb_pinn,
+    Cn_pinn,
+    Cb_nn,
+    Cn_nn,
+    leu_source_points,
+):
+    t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
+    x_np = np.linspace(
+        x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
+    )
+    time_plot = np.linspace(0, size_t - 1, num=6, endpoint=True, dtype=int)
+
+    fig, axes = plt.subplots(3, 2, figsize=(14, 10), sharex=True)
+    # fig.suptitle(
+    #     "$\\bf{Resposta\\ Imunológica}$ — Evolução em 1D", fontsize=18, weight="bold"
+    # )
+
+    colors = plt.cm.viridis(np.linspace(0, 1, len(time_plot)))
+    source_index = np.argwhere(leu_source_points[:, 0] == 1).ravel()
+
+    titles = [
+        [
+            "$C_p$ MVF",
+            "$C_l$ MVF",
+        ],
+        [
+            "$C_p$ PINN",
+            "$C_l$ PINN",
+        ],
+        [
+            "$C_p$ RN",
+            "$C_l$ RN",
+        ],
+    ]
+
+    for row, (Cb_data, Cn_data) in enumerate(
+        [(Cb, Cn), (Cb_pinn, Cn_pinn), (Cb_nn, Cn_nn)]
+    ):
+        for col, (data, ylabel) in enumerate(
+            zip([Cb_data, Cn_data], ["$C_p$", "$C_n$"])
+        ):
+            ax = axes[row, col]
+            for i, time_inst in enumerate(time_plot):
+                ax.plot(
+                    x_np,
+                    data[time_inst].squeeze(),
+                    label=f"t = {t_np[time_inst]:.2f}",
+                    color=colors[i],
+                    linewidth=2,
+                    alpha=0.85,
+                )
+
+            ax.scatter(
+                x_np[source_index],
+                np.zeros(source_index.shape),
+                color="red",
+                label="Fontes",
+                s=40,
+                marker="x",
+            )
+
+            ax.set_xlabel("x", fontsize=12)
+            ax.set_ylabel(ylabel, fontsize=12)
+            ax.set_title(titles[row][col], fontsize=14)
+            ax.legend()
+            ax.grid(True, linestyle="--", alpha=0.5)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
+
+
+def plot_comparison_contour(
+    size_t,
+    size_x,
+    t_dom,
+    x_dom,
+    Cb,
+    Cn,
+    Cb_comp,
+    Cn_comp,
+    titles
+):
+    # Time and spatial domains
+    t = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
+    x = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=True, dtype=np.float32)
+    X, T = np.meshgrid(x, t)  # For contour plots in (x, t)
+
+    fig, axes = plt.subplots(2, 3, figsize=(20, 9), sharex=True, sharey=True)
+    # fig.suptitle("Evolução da concentração: Comparação FVM / PINN / NN", fontsize=18)
+
+    data_list = [
+        Cb,
+        Cb_comp,
+        np.abs(Cb - Cb_comp),
+        Cn,
+        Cn_comp,
+        np.abs(Cn - Cn_comp),
+    ]
+
+    for i, ax in enumerate(axes.flat):
+        data = data_list[i].reshape(size_t, size_x)
+        vmin = np.min(data)
+        vmax = np.max(data)
+        contour = ax.contourf(X, T, data, cmap="jet", vmin=vmin, vmax=vmax)
+        fig.colorbar(contour, ax=ax, ticks=np.linspace(vmin, vmax, num=5))
+
+        ax.set_xlabel("x")
+        ax.set_ylabel("t")
+        ax.set_title(titles[i], fontsize=14)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()

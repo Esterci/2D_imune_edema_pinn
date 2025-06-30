@@ -10,8 +10,11 @@ from fisiocomPinn.Net import *
 def load_model(file_name, device):
     cwd = os.getcwd()
 
-    hidden_layer = [int(n_neurons) for n_neurons in file_name.split("beta2_")[-1].split(".pt")[0].split("__")[1:]]
-    
+    hidden_layer = [
+        int(n_neurons)
+        for n_neurons in file_name.split("beta2_")[-1].split(".pt")[0].split("__")[1:]
+    ]
+
     dtype = torch.float32
     model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
 
@@ -186,7 +189,7 @@ for nn_num, nn_file in enumerate(nn_list):
             rmse = np.mean(error.flatten())
 
             max_ae = np.max(error.flatten())
-            
+
             output["std_speed_up"] = np.std(output["mean_speed_up"])
             output["std_speed_comp_up"] = np.std(output["mean_speed_comp_up"])
             output["std_speed_up_pinn"] = np.std(output["mean_speed_up_pinn"])

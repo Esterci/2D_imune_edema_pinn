@@ -84,7 +84,6 @@ if __name__ == "__main__":
     y_dom = mesh_properties["y_dom"]
     t_dom = mesh_properties["t_dom"]
 
-
     Cl_list, Cp_list, speed_up_list = read_files("fvm_sim")
 
     Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
@@ -114,11 +113,11 @@ if __name__ == "__main__":
         Cl_fvm,
         leu_source_points,
     )
-    
+
     n_epochs = int(1e4)
 
     batch_size = int(1e4)
-    
+
     hidden_layer = [int(n_neurons) for n_neurons in arch_str.split("__")[1:]]
 
     dtype = torch.float32
@@ -131,7 +130,6 @@ if __name__ == "__main__":
         arch_str += "__" + str(hd)
 
     pinn_file = "beta1_{}__beta2_{}".format(beta1, beta2) + arch_str
-
 
     print("\n" + pinn_file)
 
@@ -171,7 +169,6 @@ if __name__ == "__main__":
         constant_properties=constant_properties,
     )
 
-
     init_loss = LOSS_INITIAL(
         batch_size=batch_size,
         device=device,
@@ -179,10 +176,11 @@ if __name__ == "__main__":
         name="LossInital",
     )
 
-    init_loss.setBatchGenerator(generate_initial_points, center_x_tc, radius_tc, initial_tc)
+    init_loss.setBatchGenerator(
+        generate_initial_points, center_x_tc, radius_tc, initial_tc
+    )
 
     trainer.add_loss(init_loss)
-
 
     bnd_loss = LOSS_PINN(
         batch_size=batch_size,
@@ -196,7 +194,6 @@ if __name__ == "__main__":
     bnd_loss.setPinnFunction(boundary_condition, Dn, X_nb, Db, device)
 
     trainer.add_loss(bnd_loss)
-
 
     pde_loss = LOSS_PINN(
         batch_size=batch_size,
@@ -242,7 +239,6 @@ if __name__ == "__main__":
     with open("learning_curves/" + pinn_file + ".pkl", "wb") as openfile:
         # Reading from json file
         pk.dump(loss_dict, openfile)
-
 
     del model
     del trainer

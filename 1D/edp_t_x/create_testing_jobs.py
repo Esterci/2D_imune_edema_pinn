@@ -25,7 +25,7 @@ def write_setup():
 
     else:
         print("The fvm job does not exist")
-    
+
     add_line("#!/bin/bash", "jobs/pinn_testing.job")
     add_line(
         "#----------------------------------------------------------",
