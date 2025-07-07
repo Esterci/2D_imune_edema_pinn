@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 
-
 def preencher_matriz_uniforme(x_size, y_size):
     # Cria uma matriz de zeros com as dimensões fornecidas
     matriz = np.ones((x_size, y_size), dtype=int)
@@ -594,15 +593,7 @@ def plot_comparison_pinn(
 
 
 def plot_comparison_contour(
-    size_t,
-    size_x,
-    t_dom,
-    x_dom,
-    Cb,
-    Cn,
-    Cb_comp,
-    Cn_comp,
-    titles
+    size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_comp, Cn_comp, titles
 ):
     # Time and spatial domains
     t = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
