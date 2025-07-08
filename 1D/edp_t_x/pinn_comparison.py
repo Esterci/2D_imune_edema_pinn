@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
         target = target.cpu().detach()
 
-        speed_up_obj = read_speed_ups(speed_up_list)
+        speed_up_obj = read_speed_ups(speed_up_list[:4])
 
         metrics = {
             "n_samples": n_samples,
@@ -342,12 +342,12 @@ if __name__ == "__main__":
         metrics["std_pinn_time"] = np.std(metrics["mean_pinn_time"])
         metrics["mean_pinn_time"] = np.mean(metrics["mean_pinn_time"])
         metrics["pinn_rmse"] = np.mean(error_pinn.flatten())
-        metrics["pinn_mae"] = np.mean(error_pinn.flatten())
+        metrics["pinn_mae"] = np.max(error_pinn.flatten())
 
         metrics["std_nn_time"] = np.std(metrics["mean_nn_time"])
         metrics["mean_nn_time"] = np.mean(metrics["mean_nn_time"])
         metrics["nn_rmse"] = np.mean(error_nn.flatten())
-        metrics["nn_mae"] = np.mean(error_nn.flatten())
+        metrics["nn_mae"] = np.max(error_nn.flatten())
 
         with open("pinn_sim/comp_output_" + str(n_samples) + ".pkl", "wb") as openfile:
             # Reading from json file
