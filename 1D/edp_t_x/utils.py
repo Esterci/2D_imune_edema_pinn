@@ -533,7 +533,7 @@ def plot_comparison_pinn(
     )
     time_plot = np.linspace(0, size_t - 1, num=6, endpoint=True, dtype=int)
 
-    fig, axes = plt.subplots(3, 2, figsize=(14, 10), sharex=True)
+    fig, axes = plt.subplots(3, 2, figsize=(6, 3), sharex=True)
     # fig.suptitle(
     #     "$\\bf{Resposta\\ Imunológica}$ — Evolução em 1D", fontsize=18, weight="bold"
     # )
@@ -593,16 +593,14 @@ def plot_comparison_pinn(
 
 
 def plot_comparison_contour(
-    size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_comp, Cn_comp, titles
+    size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_comp, Cn_comp
 ):
-    # Time and spatial domains
+    # Domínios
     t = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
     x = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=True, dtype=np.float32)
-    X, T = np.meshgrid(x, t)  # For contour plots in (x, t)
+    X, T = np.meshgrid(x, t)
 
-    fig, axes = plt.subplots(2, 3, figsize=(20, 9), sharex=True, sharey=True)
-    # fig.suptitle("Evolução da concentração: Comparação FVM / PINN / NN", fontsize=18)
-
+    # Lista de dados para os 6 plots
     data_list = [
         Cb,
         Cb_comp,
@@ -612,16 +610,20 @@ def plot_comparison_contour(
         np.abs(Cn - Cn_comp),
     ]
 
-    for i, ax in enumerate(axes.flat):
-        data = data_list[i].reshape(size_t, size_x)
-        vmin = np.min(data)
-        vmax = np.max(data)
-        contour = ax.contourf(X, T, data, cmap="jet", vmin=vmin, vmax=vmax)
-        fig.colorbar(contour, ax=ax, ticks=np.linspace(vmin, vmax, num=5))
+    # Plotando cada gráfico individualmente
+    for i, data in enumerate(data_list):
+        fig, ax = plt.subplots(figsize=(6, 4))
+        Z = data.reshape(size_t, size_x)
+        vmin = np.min(Z)
+        vmax = np.max(Z)
+
+        contour = ax.contourf(X, T, Z, cmap="jet", vmin=vmin, vmax=vmax)
+        cbar = fig.colorbar(contour, ax=ax, ticks=np.linspace(vmin, vmax, num=5))
 
         ax.set_xlabel("x")
         ax.set_ylabel("t")
-        ax.set_title(titles[i], fontsize=14)
+        # Título removido
+        ax.grid(False)
+        plt.tight_layout()
+        plt.show()
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
-    plt.show()

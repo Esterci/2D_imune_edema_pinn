@@ -31,6 +31,10 @@ case "$1" in
         echo "Downloading PINN inference files..."
         scp "$REMOTE/pinn_sim/*" ./pinn_sim
         ;;
+    pinn-comparison)
+        echo "Downloading PINN comparison files..."
+        scp "$REMOTE/pinn_sim/comp_*" ./pinn_sim
+        ;;
     control)
         echo "Downloading control_dicts..."
         scp "$REMOTE/control_dicts/*" ./control_dicts

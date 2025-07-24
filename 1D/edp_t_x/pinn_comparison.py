@@ -82,7 +82,7 @@ hidden_layer = [int(n_neurons) for n_neurons in arch_str.split("__")[1:]]
 
 dtype = torch.float32
 
-samples_list = np.linspace(1e2, 1.5e3, num=10, endpoint=True, dtype=int)
+samples_list = np.linspace(1e1, 1.5e3, num=10, endpoint=True, dtype=int)
 
 
 if __name__ == "__main__":
