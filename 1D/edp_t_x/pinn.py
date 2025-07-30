@@ -674,7 +674,7 @@ class Trainer:
 
             # Computing validation loss
 
-            if it % self.val_steps:
+            if it % self.val_steps == 0:
                 with torch.no_grad():
                     val_old = val_loss
 
