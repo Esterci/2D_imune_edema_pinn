@@ -180,7 +180,7 @@ if __name__ == "__main__":
         generate_initial_points, center_x_tc, radius_tc, initial_tc
     )
 
-    trainer.add_loss(init_loss)
+    # trainer.add_loss(init_loss)
 
     bnd_loss = LOSS_PINN(
         batch_size=batch_size,
@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     bnd_loss.setPinnFunction(boundary_condition, Dn, X_nb, Db, device)
 
-    trainer.add_loss(bnd_loss)
+    # trainer.add_loss(bnd_loss)
 
     pde_loss = LOSS_PINN(
         batch_size=batch_size,
@@ -223,7 +223,7 @@ if __name__ == "__main__":
         device,
     )
 
-    trainer.add_loss(pde_loss, 5)
+    # trainer.add_loss(pde_loss, 5)
 
     model, loss_dict = trainer.train()
 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
     torch.save(model.state_dict(), cwd + "/nn_parameters/" + pinn_file + ".pt")
 
-    with open("learning_curves/" + pinn_file + ".pkl", "wb") as openfile:
+    with open("learning_curves/comp.pkl", "wb") as openfile:
         # Reading from json file
         pk.dump(loss_dict, openfile)
 
