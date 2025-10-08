@@ -31,6 +31,43 @@ activation_dict = {
 }
 
 
+def generate_model(arch_str):
+    hidden_layers = arch_str.split("__")
+
+    modules = []
+
+    for params in hidden_layers:
+        if len(params) != 0:
+            activation, out_neurons = params.split("--")
+
+            if len(modules) == 0:
+                if activation == "Linear":
+                    modules.append(
+                        activation_dict[activation](3, int(out_neurons)).float()
+                    )
+
+                else:
+                    modules.append(nn.Linear(3, int(out_neurons)).float())
+                    modules.append(activation_dict[activation]().float())
+
+            else:
+                if activation == "Linear":
+                    modules.append(
+                        activation_dict[activation](
+                            int(in_neurons), int(out_neurons)
+                        ).float()
+                    )
+
+                else:
+                    modules.append(nn.Linear(int(in_neurons), int(out_neurons)).float())
+                    modules.append(activation_dict[activation]().float())
+
+            in_neurons = out_neurons
+
+    modules.append(nn.Linear(int(in_neurons), 2).float())
+
+    return nn.Sequential(*modules)
+
 def get_infection_site(struct_name):
 
     center_str = (struct_name).split("__")[-3].split("(")[-1].split(")")[0].split(",")
