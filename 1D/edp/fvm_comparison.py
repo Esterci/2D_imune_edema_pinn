@@ -56,7 +56,7 @@ size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
     radius,
     percent=0.1,
     create_source=True,
-    source_type="uniform"
+    source_type="uniform",
 )
 
 print(f"Mesh initialized for iteration.")

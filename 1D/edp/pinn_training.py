@@ -116,18 +116,11 @@ if __name__ == "__main__":
 
     n_epochs = int(1e4)
 
-    batch_size = int(1e4)
+    batch_size = int(1.2e3)
 
-    hidden_layer = [int(n_neurons) for n_neurons in arch_str.split("__")[1:]]
+    dtype = torch.float64
 
-    dtype = torch.float32
-
-    model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
-
-    arch_str = ""
-
-    for hd in hidden_layer:
-        arch_str += "__" + str(hd)
+    model = generate_model(arch_str, 2, 2)
 
     pinn_file = "beta1_{}__beta2_{}".format(beta1, beta2) + arch_str
 
@@ -141,89 +134,60 @@ if __name__ == "__main__":
     )
 
     optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(beta1, beta2))
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode="min",
-        factor=0.9999,
-        patience=1000,
-        threshold=1e-3,
-        threshold_mode="rel",
-        cooldown=0,
-        min_lr=1e-5,
-        eps=1e-08,
-    )
 
     trainer = Trainer(
         n_epochs=n_epochs,
         batch_size=batch_size,
         model=model,
         device=device,
-        target=target,
-        data=data_tc,
+        # target=target,
+        # data=data_tc,
         patience=5000,
         tolerance=0.01,
-        validation=0.2,
+        # validation=0.2,
         optimizer=optimizer,
-        scheduler=lr_scheduler,
-        print_steps=100,
-        constant_properties=constant_properties,
+        print_steps=1e3,
     )
 
-    init_loss = LOSS_INITIAL(
-        batch_size=batch_size,
+    init_loss = LOSS(
         device=device,
-        loss="RMSE",
-        name="LossInital",
+        name="Inital",
+        batch_size=batch_size,
     )
 
     init_loss.setBatchGenerator(
         generate_initial_points, center_x_tc, radius_tc, initial_tc
     )
 
-    # trainer.add_loss(init_loss)
+    init_loss.setEvalFunction(initial_condition, device)
 
-    bnd_loss = LOSS_PINN(
-        batch_size=batch_size,
+    trainer.add_loss(init_loss, 10)
+
+    bnd_loss = LOSS(
         device=device,
-        loss="RMSE",
-        name="LossBoundary",
-    )
-
-    bnd_loss.setBatchGenerator(generate_boundary_points)
-
-    bnd_loss.setPinnFunction(boundary_condition, Dn, X_nb, Db, device)
-
-    # trainer.add_loss(bnd_loss)
-
-    pde_loss = LOSS_PINN(
+        name="Boundary",
         batch_size=batch_size,
+    )
+
+    bnd_loss.setBatchGenerator(generate_boundary_points, t_dom[1])
+
+    bnd_loss.setEvalFunction(boundary_condition, Dn, X_nb, Db, device)
+
+    trainer.add_loss(bnd_loss)
+
+    pde_loss = LOSS(
         device=device,
-        loss="RMSE",
-        name="LossPDE",
+        name="PDE",
+        batch_size=batch_size,
     )
 
-    pde_loss.setBatchGenerator(generate_pde_points)
+    pde_loss.setBatchGenerator(generate_pde_points, t_dom[1])
 
-    original_source = torch.tensor(leu_source_points).to(device)
-
-    pde_loss.setPinnFunction(
-        pde,
-        h,
-        cb,
-        phi,
-        lambd_nb,
-        Db,
-        y_n,
-        Cn_max,
-        lambd_bn,
-        mi_n,
-        Dn,
-        X_nb,
-        original_source,
-        device,
+    pde_loss.setEvalFunction(
+        pde, h, cb, phi, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb, device
     )
 
-    # trainer.add_loss(pde_loss, 5)
+    trainer.add_loss(pde_loss)
 
     model, loss_dict = trainer.train()
 

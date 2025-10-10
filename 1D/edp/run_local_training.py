@@ -27,7 +27,7 @@ for n_l in n_hd_layers:
         arch_str = ""
 
         for _ in range(n_l):
-            arch_str += "__" + str(n_n)
+            arch_str += "__SiLU--" + str(n_n)
 
         for b1 in betas1:
             for b2 in betas2:

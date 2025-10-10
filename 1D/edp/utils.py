@@ -592,9 +592,7 @@ def plot_comparison_pinn(
     plt.show()
 
 
-def plot_comparison_contour(
-    size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_comp, Cn_comp
-):
+def plot_comparison_contour(size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_comp, Cn_comp):
     # Domínios
     t = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
     x = np.linspace(x_dom[0], x_dom[-1], num=size_x, endpoint=True, dtype=np.float32)
@@ -626,4 +624,3 @@ def plot_comparison_contour(
         ax.grid(False)
         plt.tight_layout()
         plt.show()
-
