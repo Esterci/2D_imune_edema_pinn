@@ -15,7 +15,7 @@ def load_model(file_name, device):
         for n_neurons in file_name.split("beta2_")[-1].split(".pt")[0].split("__")[1:]
     ]
 
-    dtype = torch.float32
+    dtype = torch.float64
     model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
 
     model.load_state_dict(
@@ -80,7 +80,7 @@ n_epochs = int(1e4)
 
 hidden_layer = [int(n_neurons) for n_neurons in arch_str.split("__")[1:]]
 
-dtype = torch.float32
+dtype = torch.float64
 
 samples_list = np.linspace(1e1, 1.5e3, num=10, endpoint=True, dtype=int)
 

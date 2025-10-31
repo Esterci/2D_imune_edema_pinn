@@ -26,8 +26,11 @@ for n_l in n_hd_layers:
 
         arch_str = ""
 
-        for _ in range(n_l):
-            arch_str += "__SiLU--" + str(n_n)
+        for i in range(n_l):
+            if i % 2 == 0:
+                arch_str += "__SiLU--" + str(n_n)
+            else:
+                arch_str += "__Tanh--" + str(n_n)
 
         for b1 in betas1:
             for b2 in betas2:

@@ -10,13 +10,14 @@ from fisiocomPinn.Net import *
 def load_model(file_name, device):
     cwd = os.getcwd()
 
-    hidden_layer = [
-        int(n_neurons)
-        for n_neurons in file_name.split("beta2_")[-1].split(".pt")[0].split("__")[1:]
-    ]
+    arch_str = ("__").join(
+        file_name.split("beta2_")[-1].split(".pt")[0].split("__")[1:]
+    )
 
-    dtype = torch.float32
-    model = FullyConnectedNetwork(2, 2, hidden_layer, dtype=dtype)
+    print(arch_str)
+
+    dtype = torch.float64
+    model = generate_model(arch_str, 2, 2)
 
     model.load_state_dict(
         torch.load(cwd + "/" + file_name, weights_only=True, map_location=device)

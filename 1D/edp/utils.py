@@ -116,7 +116,7 @@ def init_mesh(
 
     size_x = int(((x_dom[1] - x_dom[0]) / (h)))
     size_y = int(((y_dom[1] - y_dom[0]) / (h)))
-    size_t = int(((t_dom[1] - t_dom[0]) / (k)) + 1)
+    size_t = int(((t_dom[1] - t_dom[0]) / (k)))
 
     if create_source:
         if source_type == "central":
