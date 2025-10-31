@@ -59,7 +59,9 @@ def generate_model(arch_str, input, output):
                     )
 
                 else:
-                    modules.append(nn.Linear(int(in_neurons), int(out_neurons)).double())
+                    modules.append(
+                        nn.Linear(int(in_neurons), int(out_neurons)).double()
+                    )
                     modules.append(activation_dict[activation]().double())
 
             in_neurons = out_neurons

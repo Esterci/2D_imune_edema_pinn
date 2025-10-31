@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
     size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
 
-    print(center,radius,central_ini_cond)
+    print(center, radius, central_ini_cond)
 
     with open("source_points/lymph_vessels.pkl", "rb") as f:
         leu_source_points = pk.load(f)
@@ -189,7 +189,7 @@ if __name__ == "__main__":
         pde, h, cb, phi, lambd_nb, Db, y_n, Cn_max, lambd_bn, mi_n, Dn, X_nb, device
     )
 
-    #trainer.add_loss(pde_loss)
+    # trainer.add_loss(pde_loss)
 
     model, loss_dict = trainer.train()
 
