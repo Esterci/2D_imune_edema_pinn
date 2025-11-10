@@ -477,7 +477,7 @@ def plot_comparison_contour(size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_comp, Cn_co
         # Título removido
         ax.grid(False)
         plt.tight_layout()
-        plt.show()  
+        plt.show()
 
 
 def plot_learning_curves(loss_dict, labels, markers, log=False):
@@ -506,5 +506,3 @@ def plot_learning_curves(loss_dict, labels, markers, log=False):
     ax.grid()
     ax.legend()
     plt.show()
-
-    
