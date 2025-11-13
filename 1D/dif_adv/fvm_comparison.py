@@ -85,7 +85,7 @@ Cb, Cn = solve_pde(
     central_ini_cond,
     center=center,
     radius=radius,
-    verbose=False,
+    verbose=True,
 )
 
 end = time.time()

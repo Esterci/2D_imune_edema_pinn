@@ -173,11 +173,10 @@ def create_input_mesh(
     x_idx = np.linspace(0, size_x, num=size_x, endpoint=False, dtype=int)
 
     if n_samples:
-
         reduced_Cl, reduced_Cp, choosen_points = under_sampling(
             n_samples, Cl_fvm, Cp_fvm
         )
-
+       
         t_np = np.linspace(
             t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float64
         )[choosen_points]
@@ -235,12 +234,6 @@ def allocates_training_mesh(
     n_samples=None,
 ):
 
-    (
-        t_mesh,
-        x_mesh,
-        src_mesh,
-    ) = create_input_mesh(source, t_dom, x_dom, size_t, size_x)
-
     if torch.cuda.is_available():
         device = torch.device("cuda")
 
@@ -263,22 +256,10 @@ def allocates_training_mesh(
         torch.tensor(radius, dtype=torch.float64).reshape(-1, 1).requires_grad_(True)
     )
 
-    t_tc = torch.tensor(t_mesh, dtype=torch.float64).reshape(-1, 1)
-
-    x_tc = torch.tensor(x_mesh, dtype=torch.float64).reshape(-1, 1)
-
-    data_tc = torch.cat([t_tc, x_tc], dim=1).requires_grad_(True).to(device)
-
-    src_tc = (
-        torch.tensor(src_mesh, dtype=torch.float64).reshape(-1, 1).requires_grad_(True)
-    )
-
-    target = torch.tensor(
-        np.array([Cl_fvm.flatten(), Cp_fvm.flatten()]).T,
-        dtype=torch.float64,
-    )
+    print("criou as matrizes")
 
     if n_samples:
+        print("Entrou no if")
 
         (
             reduced_Cl,
@@ -297,6 +278,7 @@ def allocates_training_mesh(
             Cp_fvm,
         )
 
+        
         reduced_t_tc = torch.tensor(reduced_t_mesh, dtype=torch.float64).reshape(-1, 1)
 
         reduced_x_tc = torch.tensor(reduced_x_mesh, dtype=torch.float64).reshape(-1, 1)
@@ -322,9 +304,6 @@ def allocates_training_mesh(
             initial_tc,
             center_x_tc,
             radius_tc,
-            data_tc,
-            src_tc,
-            target,
             reduced_data_tc,
             reduced_src_tc,
             reduced_target,
@@ -332,6 +311,29 @@ def allocates_training_mesh(
         )
 
     else:
+        (
+            t_mesh,
+            x_mesh,
+            src_mesh,
+        ) = create_input_mesh(source, t_dom, x_dom, size_t, size_x)
+
+        t_tc = torch.tensor(t_mesh, dtype=torch.float64).reshape(-1, 1)
+
+        x_tc = torch.tensor(x_mesh, dtype=torch.float64).reshape(-1, 1)
+
+        data_tc = torch.cat([t_tc, x_tc], dim=1).requires_grad_(True).to(device)
+
+        src_tc = (
+            torch.tensor(src_mesh, dtype=torch.float64)
+            .reshape(-1, 1)
+            .requires_grad_(True)
+        )
+
+        target = torch.tensor(
+            np.array([Cl_fvm.flatten(), Cp_fvm.flatten()]).T,
+            dtype=torch.float64,
+        )
+
         return (
             initial_tc,
             center_x_tc,
@@ -455,7 +457,6 @@ def generate_pde_source(original_source, h, batch, device):
 
     # Identify active source locations in x_domain
     source_locs = x_domain[original_source.view(-1) == 1]  # shape [M, 1], where M ≤ N
-    source_locs
 
     # Compute bounds
     l_bound = source_locs - h  # [M, 1]
@@ -552,7 +553,11 @@ def pde(
 
     rn = lambd_bn * pred[:, 0].ravel() * pred[:, 1] + mi_n * pred[:, 0]  # [1000, 1]
 
-    Cl_eq = Dn * d2Cl_dx2.ravel() - dCl_dt.ravel() * phi  # All shapes [1000, 1]
+    Cl_eq = (
+        Dn * d2Cl_dx2.ravel()
+        - X_nb * ((dCl_dx * dCp_dx).ravel() + pred[:, 0] * d2Cp_dx2.ravel())
+        - dCl_dt.ravel() * phi
+    )  # All shapes [1000, 1]
 
     qb = cb * pred[:, 1]
 

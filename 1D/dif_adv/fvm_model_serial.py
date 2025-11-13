@@ -110,20 +110,13 @@ def solve_pde(
 
                 diff_Cb_down = 0 if (j == 0) else (Cb_old[i, j] - Cb_old[i, j - 1])
 
-                max_vx = np.max(
-                    (
-                        abs(diff_Cb_left * X_nb / h),
-                        abs(diff_Cb_right * X_nb / h),
-                    )
-                )
+                vx_right = X_nb * diff_Cb_right / h
+                vx_left = X_nb * diff_Cb_left / h
+                vy_up = X_nb * diff_Cb_up / h
+                vy_down = X_nb * diff_Cb_down / h
 
-                max_vy = np.max(
-                    (
-                        abs(diff_Cb_down * X_nb / h),
-                        abs(diff_Cb_up * X_nb / h),
-                    )
-                )
-
+                max_vx = max(abs(vx_left), abs(vx_right))
+                max_vy = max(abs(vy_down), abs(vy_up))
                 max_v = max(max_vx, max_vy)
 
                 if max_v > global_max_v:
@@ -158,45 +151,34 @@ def solve_pde(
                     0
                     if i == size_x - 1
                     else (
-                        (Cn_old[i, j] * diff_Cb_right)
-                        if diff_Cb_right > 0
-                        else (Cn_old[i + 1, j] * diff_Cb_right)
+                        vx_right * (Cn_old[i, j] if vx_right > 0 else Cn_old[i + 1, j])
                     )
                 )
 
                 adv_left = (
                     0
                     if i == 0
-                    else (
-                        (Cn_old[i, j] * diff_Cb_left)
-                        if diff_Cb_left < 0
-                        else (Cn_old[i - 1, j] * diff_Cb_left)
-                    )
+                    else (vx_left * (Cn_old[i - 1, j] if vx_left > 0 else Cn_old[i, j]))
                 )
 
                 adv_up = (
                     0
                     if j == size_y - 1
-                    else (
-                        (Cn_old[i, j] * diff_Cb_up)
-                        if diff_Cb_up > 0
-                        else (Cn_old[i, j + 1] * diff_Cb_up)
-                    )
+                    else (vy_up * (Cn_old[i, j] if vy_up > 0 else Cn_old[i, j + 1]))
                 )
 
                 adv_down = (
                     0
                     if j == 0
-                    else (
-                        (Cn_old[i, j] * diff_Cb_down)
-                        if diff_Cb_down < 0
-                        else (Cn_old[i, j - 1] * diff_Cb_down)
-                    )
+                    else (vy_down * (Cn_old[i, j - 1] if vy_down > 0 else Cn_old[i, j]))
                 )
 
                 # Atualizando as concentrações de neutrófilos
-                Cn_new[i][j] = (k * Dn) / (h * h * phi) * (
-                    diff_Cn_right - diff_Cn_left + diff_Cn_up - diff_Cn_down
+                Cn_new[i][j] = Cn_new[i][j] = (
+                    (k * Dn)
+                    / (h * h * phi)
+                    * (diff_Cn_right - diff_Cn_left + diff_Cn_up - diff_Cn_down)
+                    - (k / (h * phi)) * (adv_right - adv_left + adv_up - adv_down)
                 ) + Cn_old[i, j]
 
                 # Armazenando os resultados para o passo de tempo atual
@@ -207,20 +189,12 @@ def solve_pde(
 
         cfl_adv = global_max_v * k / h
 
-        cfl_dif = np.max((4 * Db * k / (h * h), 4 * Dn * k / (h * h)))
+        cfl_dif = np.max((2 * Db * k / (h * h), 2 * Dn * k / (h * h)))
 
-        if cfl_adv > 1:
+        if cfl_adv + cfl_dif > 1:
             print(
-                "ERROR - CFL criterium not matched on iteration {} for advection: {}".format(
-                    time, cfl_adv
-                )
-            )
-            break
-
-        elif cfl_dif > 1:
-            print(
-                "ERROR - CFL criterium not matched on iteration {} for difusion: {}".format(
-                    time, cfl_dif
+                "ERROR - CFL criterium not matched on iteration {}: {}".format(
+                    time, cfl_adv + cfl_dif
                 )
             )
             break

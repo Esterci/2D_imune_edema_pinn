@@ -90,7 +90,6 @@ if __name__ == "__main__":
 
     size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
 
-    print(center, radius, central_ini_cond)
 
     with open("source_points/lymph_vessels.pkl", "rb") as f:
         leu_source_points = pk.load(f)
@@ -114,11 +113,14 @@ if __name__ == "__main__":
         Cp_fvm,
         Cl_fvm,
         leu_source_points,
+        n_samples=int(1e3),
     )
+
+    print(initial_tc.shape)
 
     n_epochs = int(1e4)
 
-    batch_size = int(1.2e3)
+    batch_size = int(2e4)
 
     dtype = torch.float64
 

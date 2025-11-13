@@ -6,8 +6,8 @@
     "lambd_nb": 1.8,
     "mi_n": 0.2,
     "lambd_bn": 1.8,
-    "y_n": 0.1,
+    "y_n": 1e-2,
     "Cn_max": 550.0,
-    "X_nb": 0.1,
+    "X_nb": 5e-1,
     "central_ini_cond": 0.6
 }
