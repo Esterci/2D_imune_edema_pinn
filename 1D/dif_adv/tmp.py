@@ -1,6 +1,17 @@
 import matplotlib.pyplot as plt
 import torch
 
+
+#input_data.shape: torch.Size([20000, 2])
+#pred.shape: torch.Size([20000, 2])
+#dCl_dx.shape: torch.Size([20000, 1])
+#dCp_dx.shape: torch.Size([20000, 1])
+#dCl_dt.shape: torch.Size([20000, 1])
+#dCp_dt.shape: torch.Size([20000, 1])
+#d2Cl_dx2.shape: torch.Size([20000, 1])
+#d2Cp_dx2.shape: torch.Size([20000, 1])
+
+
 N = 100
 size_x = 40
 x = torch.rand(N, 1, dtype=torch.float64)
