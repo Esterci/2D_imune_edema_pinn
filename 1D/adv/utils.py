@@ -149,3 +149,12 @@ def init_mesh(
     )
 
     return (size_x, size_y, size_t, leu_source_points, struct_name)
+
+
+def torch_random_indices(tensor, n_samples):
+    """
+    Returns n_samples random indices for a 1D or flattened tensor.
+    """
+    total = tensor.numel()
+    idx = torch.randperm(total)[:n_samples]
+    return idx
