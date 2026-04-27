@@ -2,7 +2,7 @@
 
 # Function to display usage instructions
 usage() {
-    echo "Usage: $0 [cleaning|fvm|pinn-training|pinn-inference|all]"
+    echo "Usage: $0 [cleaning|fvm|pinn|pinn-training|pinn-inference|all]"
     exit 1
 }
 
@@ -23,6 +23,12 @@ case "$1" in
         echo "Cleaning FVM simulation files..."
         find fvm_sim/ -type f -name "*.pkl" -delete
         find fvm_animations/ -type f -name "*.mp4" -delete
+        ;;
+    pinn)
+        echo "Cleaning all PINN files..."
+        find learning_curves/ -type f -name "*.pkl" -delete
+        find nn_parameters/ -type f -name "*.pt" -delete
+        find pinn_sim/ -type f -name "*.pkl" -delete
         ;;
     pinn-training)
         echo "Cleaning PINN training files..."

@@ -28,7 +28,7 @@ for n_l in n_hd_layers:
 
         for i in range(n_l):
             if i % 2 == 0:
-                arch_str += "__SiLU--" + str(n_n)
+                arch_str += "__ReLU--" + str(n_n)
             else:
                 arch_str += "__Tanh--" + str(n_n)
 

@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     # Initialize mesh and related properties
 
-    size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
+    size_x, size_y, size_t, struct_name = init_mesh(
         x_dom,
         y_dom,
         t_dom,
@@ -58,7 +58,6 @@ if __name__ == "__main__":
         k,
         center,
         radius,
-        create_source=False,
     )
 
-    plot_results(size_t, size_x, t_dom, x_dom, Cp, Cl, leu_source_points)
+    plot_results(size_t, size_x, t_dom, x_dom, Cp, Cl)

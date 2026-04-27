@@ -72,15 +72,11 @@ Cp_fvm, Cl_fvm, center, radius = format_array(Cp_list[0], Cl_list[0])
 
 size_x, size_y, size_t = get_mesh_properties(x_dom, y_dom, t_dom, h, k)
 
-with open("source_points/lymph_vessels.pkl", "rb") as f:
-    leu_source_points = pk.load(f)
-
 (
     initial_tc,
     center_x_tc,
     radius_tc,
     data_tc,
-    src_tc,
     target,
     device,
 ) = allocates_training_mesh(
@@ -93,7 +89,6 @@ with open("source_points/lymph_vessels.pkl", "rb") as f:
     radius,
     Cp_fvm,
     Cl_fvm,
-    leu_source_points,
 )
 
 

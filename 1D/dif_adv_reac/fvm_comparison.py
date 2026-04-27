@@ -7,7 +7,6 @@ import json
 import math
 from utils import init_mesh
 from numba import cuda
-from fvm_animation import animate_1D_evolution
 
 # Load constant properties from JSON file
 with open("control_dicts/constant_properties.json", "r") as openfile:
@@ -46,7 +45,7 @@ radius = 0.15
 
 # Initialize mesh and related properties
 
-size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
+size_x, size_y, size_t, struct_name = init_mesh(
     x_dom,
     y_dom,
     t_dom,
@@ -55,8 +54,6 @@ size_x, size_y, size_t, leu_source_points, struct_name = init_mesh(
     center,
     radius,
     percent=0.1,
-    create_source=True,
-    source_type="uniform",
 )
 
 print(f"Mesh initialized for iteration.")
@@ -66,7 +63,6 @@ start = time.time()
 # Solve PDE for each initial condition in serial mode
 
 Cb, Cn = solve_pde(
-    leu_source_points,
     size_t,
     size_x,
     size_y,
@@ -114,7 +110,6 @@ start = time.time()
 # Initialize device arrays for concentrations and sources
 Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
 Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-device_leu_source = cuda.to_device(leu_source_points)
 
 # Additional buffers for synchronization
 Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
@@ -131,7 +126,6 @@ cu_solve_pde[threadsperblock, blockspergrid](
     Cn_buf_1,
     Cb_final_device,
     Cn_final_device,
-    device_leu_source,
     size_t,
     size_x,
     size_y,
@@ -170,7 +164,6 @@ start = time.time()
 # Initialize device arrays for concentrations and sources
 Cb_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
 Cn_buf_0 = cuda.to_device(np.zeros((size_x, size_y)))
-device_leu_source = cuda.to_device(leu_source_points)
 
 # Additional buffers for synchronization
 Cb_buf_1 = cuda.device_array_like(Cb_buf_0)
@@ -187,7 +180,6 @@ cu_solve_pde[threadsperblock, blockspergrid](
     Cn_buf_1,
     Cb_final_device,
     Cn_final_device,
-    device_leu_source,
     size_t,
     size_x,
     size_y,

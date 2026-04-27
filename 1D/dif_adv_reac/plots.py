@@ -5,15 +5,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 
-def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
+def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn):
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
     x_np = np.linspace(
         x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
     )
-
-    # t_np, x_np, Cb, Cn, source_index already defined
-    # source_index is assumed to be an array of x positions only (1D or Nx1)
 
     time_plot = np.linspace(0, size_t - 1, num=6, endpoint=True, dtype=int)
 
@@ -25,8 +22,6 @@ def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
 
     colors = plt.cm.viridis(np.linspace(0, 1, len(time_plot)))
 
-    source_index = np.argwhere(leu_source_points[:, 0] == 1).ravel()
-
     # Plot Cb
     for i, time_inst in enumerate(time_plot):
         axes[0].plot(
@@ -37,15 +32,6 @@ def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
             linewidth=2,
             alpha=0.85,
         )
-
-    axes[0].scatter(
-        x_np[source_index],  # assuming source_index is Nx2 still
-        np.zeros(source_index.shape),  # put the markers at the top for visibility
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
 
     axes[0].set_title("$C_p$ ao longo de x", fontsize=14)
     axes[0].set_ylabel("$C_p$", fontsize=12)
@@ -63,15 +49,6 @@ def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
             alpha=0.85,
         )
 
-    axes[1].scatter(
-        x_np[source_index],
-        np.zeros((len(source_index))),
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
-
     axes[1].set_title("$C_n$ ao longo de x", fontsize=14)
     axes[1].set_xlabel("x", fontsize=12)
     axes[1].set_ylabel("$C_n$", fontsize=12)
@@ -79,20 +56,16 @@ def plot_results(size_t, size_x, t_dom, x_dom, Cb, Cn, leu_source_points):
     axes[1].grid(True, linestyle="--", alpha=0.5)
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
-    plt.show()
+    # plt.show()
+    plt.savefig("fvm.png")
 
 
-def plot_comparison(
-    size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_pinn, Cn_pinn, leu_source_points
-):
+def plot_comparison(size_t, size_x, t_dom, x_dom, Cb, Cn, Cb_pinn, Cn_pinn):
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
     x_np = np.linspace(
         x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
     )
-
-    # t_np, x_np, Cb, Cn, source_index already defined
-    # source_index is assumed to be an array of x positions only (1D or Nx1)
 
     time_plot = np.linspace(0, size_t - 1, num=6, endpoint=True, dtype=int)
 
@@ -104,8 +77,6 @@ def plot_comparison(
 
     colors = plt.cm.viridis(np.linspace(0, 1, len(time_plot)))
 
-    source_index = np.argwhere(leu_source_points[:, 0] == 1).ravel()
-
     # Plot Cb
     for i, time_inst in enumerate(time_plot):
         axes[0, 0].plot(
@@ -116,15 +87,6 @@ def plot_comparison(
             linewidth=2,
             alpha=0.85,
         )
-
-    axes[0, 0].scatter(
-        x_np[source_index],  # assuming source_index is Nx2 still
-        np.zeros(source_index.shape),  # put the markers at the top for visibility
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
 
     axes[0, 0].set_title("$C_p$ ao longo de x, FVM", fontsize=14)
     axes[0, 0].set_ylabel("$C_p$", fontsize=12)
@@ -141,15 +103,6 @@ def plot_comparison(
             linewidth=2,
             alpha=0.85,
         )
-
-    axes[0, 1].scatter(
-        x_np[source_index],
-        np.zeros((len(source_index))),
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
 
     axes[0, 1].set_title("$C_n$ ao longo de x, FVM", fontsize=14)
     axes[0, 1].set_xlabel("x", fontsize=12)
@@ -168,15 +121,6 @@ def plot_comparison(
             alpha=0.85,
         )
 
-    axes[1, 0].scatter(
-        x_np[source_index],  # assuming source_index is Nx2 still
-        np.zeros(source_index.shape),  # put the markers at the top for visibility
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
-
     axes[1, 0].set_title("$C_p$ ao longo de x, PINN", fontsize=14)
     axes[1, 0].set_ylabel("$C_p$", fontsize=12)
     axes[1, 0].legend()
@@ -192,15 +136,6 @@ def plot_comparison(
             linewidth=2,
             alpha=0.85,
         )
-
-    axes[1, 1].scatter(
-        x_np[source_index],
-        np.zeros((len(source_index))),
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
 
     axes[1, 1].set_title("$C_n$ ao longo de x, PINN", fontsize=14)
     axes[1, 1].set_xlabel("x", fontsize=12)
@@ -221,7 +156,6 @@ def animate_1D_comparison(
     Cn,
     Cb_pinn,
     Cn_pinn,
-    leu_source_points,
     delta_t,
     frame_time,
     name="evolucao_1D",
@@ -233,17 +167,12 @@ def animate_1D_comparison(
         size_t, size_x: nº de pontos no tempo e espaço
         t_dom, x_dom: domínios (lista ou tupla [min, max] para tempo e espaço)
         Cb, Cn: arrays de shape (size_t, size_x) com valores de Cp e Cn
-        leu_source_points: array booleano (ou 0/1) indicando onde há fontes (mesmo shape de x ou Nx1).
     """
 
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
     x_np = np.linspace(
         x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float32
     )
-
-    # Converte leu_source_points para índices (caso seja um array Nx1 de 0/1)
-    # Se já estiver pronto, pode ajustar conforme sua lógica
-    source_index = np.argwhere(leu_source_points[:, 0] == 1).ravel()
 
     # Cria figura e eixos
     fig, axes = plt.subplots(2, 2, figsize=(10, 8), sharex=True)
@@ -264,14 +193,6 @@ def animate_1D_comparison(
     # Segundo subplot: Cn
     ax_cn = axes[0, 1]
     (line_cn,) = ax_cn.plot([], [], "g-", lw=2, alpha=0.85, label="Cn")
-    sc_cn = ax_cn.scatter(
-        x_np[source_index],
-        np.zeros_like(source_index),
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
     ax_cn.set_xlabel("x", fontsize=12)
     ax_cn.set_ylabel("$C_n$")
     ax_cn.set_title("$C_n$ ao longo de x, FVM", fontsize=14)
@@ -293,14 +214,6 @@ def animate_1D_comparison(
     # Segundo subplot: Cn_pinn
     ax_cn_pinn = axes[1, 1]
     (line_cn_pinn,) = ax_cn_pinn.plot([], [], "g-", lw=2, alpha=0.85, label="Cn_pinn")
-    sc_cn_pinn = ax_cn_pinn.scatter(
-        x_np[source_index],
-        np.zeros_like(source_index),
-        color="red",
-        label="Fontes",
-        s=40,
-        marker="x",
-    )
     ax_cn_pinn.set_xlabel("x", fontsize=12)
     ax_cn_pinn.set_ylabel("$C_n$")
     ax_cn_pinn.set_title("$C_n$ ao longo de x, PINN", fontsize=14)
@@ -332,15 +245,6 @@ def animate_1D_comparison(
         line_cn.set_data(x_np, cn_vals)
         line_cp_pinn.set_data(x_np, cp_vals_pinn)
         line_cn_pinn.set_data(x_np, cn_vals_pinn)
-
-        # Atualiza posições dos scatters se necessário (aqui, continua em 0)
-        sc_cn.set_offsets(
-            np.column_stack((x_np[source_index], np.zeros_like(source_index)))
-        )
-
-        sc_cn_pinn.set_offsets(
-            np.column_stack((x_np[source_index], np.zeros_like(source_index)))
-        )
 
         # Ajusta título (opcional) para mostrar tempo
         ax_cp.set_title(f"$C_p$ ao longo de x, t = {t_np[frame]:.2f}")
@@ -379,7 +283,6 @@ def plot_comparison_pinn(
     Cn_pinn,
     Cb_nn,
     Cn_nn,
-    leu_source_points,
 ):
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float32)
     x_np = np.linspace(
@@ -393,7 +296,6 @@ def plot_comparison_pinn(
     # )
 
     colors = plt.cm.viridis(np.linspace(0, 1, len(time_plot)))
-    source_index = np.argwhere(leu_source_points[:, 0] == 1).ravel()
 
     titles = [
         [
@@ -426,15 +328,6 @@ def plot_comparison_pinn(
                     linewidth=2,
                     alpha=0.85,
                 )
-
-            ax.scatter(
-                x_np[source_index],
-                np.zeros(source_index.shape),
-                color="red",
-                label="Fontes",
-                s=40,
-                marker="x",
-            )
 
             ax.set_xlabel("x", fontsize=12)
             ax.set_ylabel(ylabel, fontsize=12)

@@ -86,9 +86,6 @@ def init_mesh(
     k,
     center,
     radius,
-    create_source=False,
-    source_type="central",
-    source_behavior="boolean",
     percent=0.2,
     verbose=False,
 ):
@@ -118,26 +115,6 @@ def init_mesh(
     size_y = int(((y_dom[1] - y_dom[0]) / (h)))
     size_t = int(((t_dom[1] - t_dom[0]) / (k)))
 
-    if create_source:
-        if source_type == "central":
-            leu_source_points = preencher_matriz_radialmente(size_x, size_y)
-        elif source_type == "random":
-            leu_source_points = preencher_matriz_randomicamente(
-                size_x, size_y, x_dom, percent, source_behavior
-            )
-        elif source_type == "uniform":
-            leu_source_points = preencher_matriz_uniforme(size_x, size_y)
-        else:
-            print("Not implemented type")
-            return
-
-        with open("source_points/lymph_vessels.pkl", "wb") as f:
-            pk.dump(leu_source_points, f)
-
-    else:
-        with open("source_points/lymph_vessels.pkl", "rb") as f:
-            leu_source_points = pk.load(f)
-
     print("Size x = {:d}, y = {:d} \n ".format(size_x, size_y))
 
     print(
@@ -148,4 +125,4 @@ def init_mesh(
         )
     )
 
-    return (size_x, size_y, size_t, leu_source_points, struct_name)
+    return (size_x, size_y, size_t, struct_name)

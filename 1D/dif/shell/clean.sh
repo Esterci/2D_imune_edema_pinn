@@ -24,6 +24,12 @@ case "$1" in
         find fvm_sim/ -type f -name "*.pkl" -delete
         find fvm_animations/ -type f -name "*.mp4" -delete
         ;;
+    pinn)
+        echo "Cleaning PINN all files..."
+        find learning_curves/ -type f -name "*.pkl" -delete
+        find nn_parameters/ -type f -name "*.pt" -delete
+        find pinn_sim/ -type f -name "*.pkl" -delete
+        ;;
     pinn-training)
         echo "Cleaning PINN training files..."
         find learning_curves/ -type f -name "*.pkl" -delete

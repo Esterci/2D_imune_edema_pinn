@@ -9,41 +9,30 @@ def fb(Cb, Cn, i, j, cb, lambd_nb):
 
 
 # Função que descreve a taxa de variação da concentração de neutrófilos (Cn)
-def fn(Cb, Cn, source_points, i, j, y_n, Cn_max, lambd_bn, mi_n):
+def fn(Cb, Cn, i, j, y_n, Cn_max, lambd_bn, mi_n):
     # Crescimento dos neutrófilos depende da presença de bactérias (Cb)
     # Também considera uma taxa de decaimento natural (mi_n) e a interação com
     # bactérias (lambd_bn)
     return (
-        y_n * Cb[i, j] * (Cn_max - Cn[i, j]) * source_points[i, j]
+        y_n * Cb[i, j] * (Cn_max - Cn[i, j])
         - lambd_bn * Cn[i, j] * Cb[i, j]
         - mi_n * Cn[i, j]
     )
 
 
 # Função para aplicar condições iniciais à concentração de bactérias (Cb)
-def apply_initial_conditions(Cn, Cb, size_x, size_y):
+def apply_initial_conditions(ini_cond, Cb, cx, cy, radius, size_x, size_y):
+    for i in range(size_x):
+        for j in range(size_y):
+            # Calculate distance from center to each point
+            if (i - cx) ** 2 + (j - cy) ** 2 <= radius**2:
+                Cb[i][j] = ini_cond  # Set point inside the circle to 1
 
-    x = np.linspace(0, 1, num=size_x, endpoint=False)
-    y = np.linspace(0, 1, num=size_y, endpoint=False)
-
-    a = 0
-    a2 = 1 - (1 / size_x)
-    b = 4
-    c = 2
-
-    cb = np.exp(-(((x - a) * b) ** 2)) / c
-
-    cn = np.exp(-(((x - a2) * b) ** 2)) / c
-
-    Cn[:, 0] = cn
-    Cb[:, 0] = cb
-
-    return Cn, Cb
+    return Cb
 
 
 # Função principal para resolver as equações diferenciais parciais usando diferenças finitas
 def solve_pde(
-    leu_source_points,
     size_t,
     size_x,
     size_y,
@@ -79,7 +68,9 @@ def solve_pde(
     cy_disc = cy_real / h
     radius_disc = radius / h
 
-    Cn_new, Cb_new = apply_initial_conditions(Cn_new, Cb_new, size_x, size_y)
+    Cb_new = apply_initial_conditions(
+        initial_cond, Cb_new, cx_disc, cy_disc, radius_disc, size_x, size_y
+    )
 
     # Armazenando as condições iniciais
     Cb_final[0] = Cb_new
@@ -130,17 +121,13 @@ def solve_pde(
                     global_max_v = max_v
 
                 # Atualizando as concentrações de bactérias
-                #                Cb_new[i][j] = (
-                #                    (k * Db)
-                #                    / (h * h * phi)
-                #                    * (diff_Cb_right - diff_Cb_left + diff_Cb_up - diff_Cb_down)
-                #                    + (k / phi) * fb(Cb_old, Cn_old, i, j, cb, lambd_nb)
-                #                    + Cb_old[i, j]
-                #                )
-
-                Cb_new[i][j] = (k * Db) / (h * h * phi) * (
-                    diff_Cb_right - diff_Cb_left + diff_Cb_up - diff_Cb_down
-                ) + Cb_old[i, j]
+                Cb_new[i][j] = (
+                    (k * Db)
+                    / (h * h * phi)
+                    * (diff_Cb_right - diff_Cb_left + diff_Cb_up - diff_Cb_down)
+                    + (k / phi) * fb(Cb_old, Cn_old, i, j, cb, lambd_nb)
+                    + Cb_old[i, j]
+                )
 
                 diff_Cn_right = (
                     0 if i == size_x - 1 else ((Cn_old[i + 1, j] - Cn_old[i, j]))
@@ -195,9 +182,26 @@ def solve_pde(
                 )
 
                 # Atualizando as concentrações de neutrófilos
-                Cn_new[i][j] = (k * Dn) / (h * h * phi) * (
-                    diff_Cn_right - diff_Cn_left + diff_Cn_up - diff_Cn_down
-                ) + Cn_old[i, j]
+                Cn_new[i][j] = (
+                    (k * Dn)
+                    / (h * h * phi)
+                    * (diff_Cn_right - diff_Cn_left + diff_Cn_up - diff_Cn_down)
+                    - (X_nb * k)
+                    / (h * h * phi)
+                    * (adv_right - adv_left + adv_up - adv_down)
+                    + (k / phi)
+                    * fn(
+                        Cb_old,
+                        Cn_old,
+                        i,
+                        j,
+                        y_n,
+                        Cn_max,
+                        lambd_bn,
+                        mi_n,
+                    )
+                    + Cn_old[i, j]
+                )
 
                 # Armazenando os resultados para o passo de tempo atual
                 Cb_final[time][i][j] = Cb_new[i][j]

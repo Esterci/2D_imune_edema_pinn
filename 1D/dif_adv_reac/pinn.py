@@ -45,11 +45,9 @@ def generate_model(arch_str, input, output):
                     modules.append(
                         activation_dict[activation](input, int(out_neurons)).double()
                     )
-
                 else:
                     modules.append(nn.Linear(input, int(out_neurons)).double())
                     modules.append(activation_dict[activation]().double())
-
             else:
                 if activation == "Linear":
                     modules.append(
@@ -57,7 +55,6 @@ def generate_model(arch_str, input, output):
                             int(in_neurons), int(out_neurons)
                         ).double()
                     )
-
                 else:
                     modules.append(
                         nn.Linear(int(in_neurons), int(out_neurons)).double()
@@ -67,6 +64,9 @@ def generate_model(arch_str, input, output):
             in_neurons = out_neurons
 
     modules.append(nn.Linear(int(in_neurons), output).double())
+
+    # garante Cp >= 0 e Cl >= 0
+    modules.append(nn.Softplus().double())
 
     return nn.Sequential(*modules)
 
@@ -143,81 +143,55 @@ def get_mesh_properties(
     return (size_x, size_y, size_t)
 
 
-def under_sampling(n_samples, Cl, Cp):
-
-    choosen_points = np.linspace(
-        0, len(Cl) - 1, num=n_samples, endpoint=True, dtype=int
-    )
-
-    reduced_Cl = np.zeros((n_samples, Cl.shape[1], Cl.shape[2]))
-
-    reduced_Cp = np.zeros((n_samples, Cp.shape[1], Cl.shape[2]))
-
-    for i, idx in enumerate(choosen_points):
-
-        reduced_Cl[i, :] = Cl[idx, :, :]
-
-        reduced_Cp[i, :] = Cp[idx, :, :]
-
-    return reduced_Cl, reduced_Cp, choosen_points
-
-
 def create_input_mesh(
-    source, t_dom, x_dom, size_t, size_x, n_samples=None, Cl_fvm=None, Cp_fvm=None
+    t_dom,
+    x_dom,
+    size_t,
+    size_x,
+    sample_percent=None,
+    Cl_fvm=None,
+    Cp_fvm=None,
+    random_state=42,
 ):
-
     x_np = np.linspace(
         x_dom[0], x_dom[-1], num=size_x, endpoint=False, dtype=np.float64
     )
 
-    x_idx = np.linspace(0, size_x, num=size_x, endpoint=False, dtype=int)
-
-    if n_samples:
-
-        reduced_Cl, reduced_Cp, choosen_points = under_sampling(
-            n_samples, Cl_fvm, Cp_fvm
-        )
-
-        t_np = np.linspace(
-            t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float64
-        )[choosen_points]
-
-        x_idx_mesh, t_mesh = np.meshgrid(
-            x_idx,
-            t_np,
-        )
-
-        x_mesh = np.zeros_like(t_mesh)
-        source_mesh = np.zeros_like(t_mesh)
-
-        x_mesh = x_np[x_idx_mesh.ravel()]
-        source_mesh = source[x_idx_mesh.ravel()]
-
-        return (
-            reduced_Cl,
-            reduced_Cp,
-            t_mesh,
-            x_mesh,
-            source_mesh,
-        )
-
     t_np = np.linspace(t_dom[0], t_dom[-1], num=size_t, endpoint=True, dtype=np.float64)
 
-    x_idx_mesh, t_mesh = np.meshgrid(
-        x_idx,
-        t_np,
-    )
+    x_idx = np.arange(size_x)
 
-    x_mesh = np.zeros_like(t_mesh)
-    source_mesh = np.zeros_like(t_mesh)
+    x_idx_mesh, t_mesh = np.meshgrid(x_idx, t_np)
 
-    x_mesh = x_np[x_idx_mesh.ravel()]
-    source_mesh = source[x_idx_mesh.ravel()]
+    x_mesh = x_np[x_idx_mesh]
+
+    if sample_percent is not None:
+
+        if Cl_fvm is None or Cp_fvm is None:
+            raise ValueError("Cl_fvm e Cp_fvm devem ser fornecidos para amostragem.")
+
+        if not (0 < sample_percent <= 100):
+            raise ValueError("sample_percent deve estar entre 0 e 100.")
+
+        n_total = len(t_mesh)
+        n_samples = int((sample_percent / 100) * n_total)
+
+        rng = np.random.default_rng(random_state)
+        chosen_points = rng.choice(n_total, size=n_samples, replace=False)
+
+        # Opcional: ordenar para manter uma sequência mais organizada
+        chosen_points = np.sort(chosen_points)
+
+        return (
+            Cl_fvm[chosen_points],
+            Cp_fvm[chosen_points],
+            t_mesh[chosen_points],
+            x_mesh[chosen_points],
+        )
 
     return (
         t_mesh,
         x_mesh,
-        source_mesh,
     )
 
 
@@ -229,72 +203,68 @@ def allocates_training_mesh(
     center_x,
     initial_cond,
     radius,
-    Cp_fvm,
     Cl_fvm,
-    source,
-    n_samples=None,
+    Cp_fvm,
+    samples_percent=None,
 ):
 
-    (
-        t_mesh,
-        x_mesh,
-        src_mesh,
-    ) = create_input_mesh(source, t_dom, x_dom, size_t, size_x)
-
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-
-    else:
-        device = "cpu"
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device:", device)
 
     initial_tc = (
         torch.tensor(initial_cond, dtype=torch.float64)
         .reshape(-1, 1)
         .requires_grad_(True)
+        .to(device)
     )
 
     center_x_tc = (
-        torch.tensor(center_x, dtype=torch.float64).reshape(-1, 1).requires_grad_(True)
+        torch.tensor(center_x, dtype=torch.float64)
+        .reshape(-1, 1)
+        .requires_grad_(True)
+        .to(device)
     )
 
     radius_tc = (
-        torch.tensor(radius, dtype=torch.float64).reshape(-1, 1).requires_grad_(True)
+        torch.tensor(radius, dtype=torch.float64)
+        .reshape(-1, 1)
+        .requires_grad_(True)
+        .to(device)
+    )
+
+    # Malha completa já linearizada
+    t_mesh, x_mesh = create_input_mesh(
+        t_dom,
+        x_dom,
+        size_t,
+        size_x,
     )
 
     t_tc = torch.tensor(t_mesh, dtype=torch.float64).reshape(-1, 1)
-
     x_tc = torch.tensor(x_mesh, dtype=torch.float64).reshape(-1, 1)
 
     data_tc = torch.cat([t_tc, x_tc], dim=1).requires_grad_(True).to(device)
 
-    src_tc = (
-        torch.tensor(src_mesh, dtype=torch.float64).reshape(-1, 1).requires_grad_(True)
-    )
-
     target = torch.tensor(
-        np.array([Cl_fvm.flatten(), Cp_fvm.flatten()]).T,
+        np.array([Cl_fvm.ravel(), Cp_fvm.ravel()]).T,
         dtype=torch.float64,
-    )
+    ).to(device)
 
-    if n_samples:
+    if samples_percent is not None:
 
         (
             reduced_Cl,
             reduced_Cp,
             reduced_t_mesh,
             reduced_x_mesh,
-            reduced_src_mesh,
         ) = create_input_mesh(
-            source,
             t_dom,
             x_dom,
             size_t,
             size_x,
-            n_samples,
-            Cl_fvm,
-            Cp_fvm,
+            sample_percent=samples_percent,
+            Cl_fvm=Cl_fvm,
+            Cp_fvm=Cp_fvm,
         )
 
         reduced_t_tc = torch.tensor(reduced_t_mesh, dtype=torch.float64).reshape(-1, 1)
@@ -307,40 +277,32 @@ def allocates_training_mesh(
             .to(device)
         )
 
-        reduced_src_tc = (
-            torch.tensor(reduced_src_mesh, dtype=torch.float64)
-            .reshape(-1, 1)
-            .requires_grad_(True)
-        )
-
         reduced_target = torch.tensor(
-            np.array([reduced_Cl.flatten(), reduced_Cp.flatten()]).T,
+            np.array([reduced_Cl.ravel(), reduced_Cp.ravel()]).T,
             dtype=torch.float64,
-        )
+        ).to(device)
+
+        print("Number of reduced points:", len(reduced_x_tc))
 
         return (
             initial_tc,
             center_x_tc,
             radius_tc,
             data_tc,
-            src_tc,
             target,
             reduced_data_tc,
-            reduced_src_tc,
             reduced_target,
             device,
         )
 
-    else:
-        return (
-            initial_tc,
-            center_x_tc,
-            radius_tc,
-            data_tc,
-            src_tc,
-            target,
-            device,
-        )
+    return (
+        initial_tc,
+        center_x_tc,
+        radius_tc,
+        data_tc,
+        target,
+        device,
+    )
 
 
 def generate_initial_points(num_points, device, center_x_tc, radius_tc, initial_tc):
@@ -357,7 +319,7 @@ def generate_initial_points(num_points, device, center_x_tc, radius_tc, initial_
 
     C_init = torch.zeros((len(x), 2), dtype=torch.float64)
 
-    C_init[:, 1] = inside_circle_mask.ravel() * initial_tc.ravel()
+    C_init[:, 1] = inside_circle_mask.to(device).ravel() * initial_tc.ravel()
 
     return (
         (t.requires_grad_(True), x.requires_grad_(True)),
@@ -365,12 +327,44 @@ def generate_initial_points(num_points, device, center_x_tc, radius_tc, initial_
     )
 
 
-def initial_condition(batch, model, device):
+def initial_condition_cl(batch, model, center_x_tc, radius_tc, initial_tc, device):
     t, x = batch
 
     input_data = torch.cat([t, x], dim=1).to(device)
 
-    return model(input_data)
+    pred = model(input_data)
+
+    Cl_init = pred[:, 0:1]
+
+    euclidean_distances = ((x - center_x_tc.item()) ** 2) ** 0.5
+
+    inside_circle_mask = euclidean_distances <= radius_tc.item()
+
+    result = torch.cat([x, euclidean_distances, inside_circle_mask], dim=1)
+
+    Cp_init = torch.zeros((len(x), 1), dtype=torch.float64)
+
+    Cp_init = inside_circle_mask.to(device).ravel() * initial_tc.ravel()
+
+    return torch.cat(
+        [Cl_init.reshape(-1, 1), Cp_init.reshape(-1, 1)],
+        dim=1,
+    )
+
+
+def initial_condition_cp(batch, model, device):
+    t, x = batch
+
+    input_data = torch.cat([t, x], dim=1).to(device)
+
+    pred = model(input_data)
+
+    Cp_init = pred[:, 1:2]
+
+    return torch.cat(
+        [torch.zeros_like(Cp_init.reshape(-1, 1)), Cp_init.reshape(-1, 1)],
+        dim=1,
+    )
 
 
 def generate_boundary_points(num_points, device, t_upper):
@@ -391,45 +385,83 @@ def generate_boundary_points(num_points, device, t_upper):
     )
 
 
-def boundary_condition(batch, model, Dn, X_nb, Db, device):
+def boundary_condition_cl(batch, model, Dn, X_nb, device):
 
     t, x = batch
 
-    input_data = torch.cat([t, x], dim=1).to(device)
+    t = t.to(device).requires_grad_(True)
+    x = x.to(device).requires_grad_(True)
+
+    input_data = torch.cat([t, x], dim=1)
 
     pred = model(input_data)
 
-    n = (
-        torch.tensor([-1, 1], dtype=torch.float64)
-        .repeat(len(pred) // 2, 1)
-        .requires_grad_(True)
-        .view(-1, 1)
-        .to(device)
-    )
+    Cl = pred[:, 0:1]
+    Cp = pred[:, 1:2]
 
     dCl_dx = torch.autograd.grad(
-        pred[:, 0],
+        Cl,
         x,
-        torch.ones_like(pred[:, 0]),
+        grad_outputs=torch.ones_like(Cl),
         create_graph=True,
         retain_graph=True,
-    )[0].to(device)
+    )[0]
 
     dCp_dx = torch.autograd.grad(
-        pred[:, 1],
+        Cp,
         x,
-        torch.ones_like(pred[:, 1]),
+        grad_outputs=torch.ones_like(Cp),
         create_graph=True,
         retain_graph=True,
-    )[0].to(device)
+    )[0]
 
-    Cl_boundary = (Dn * dCl_dx.ravel() - X_nb * pred[:, 0] * dCp_dx.ravel()) * n.ravel()
+    n = (
+        torch.tensor([-1.0, 1.0], dtype=pred.dtype, device=device)
+        .repeat(len(pred) // 2)
+        .reshape(-1, 1)
+    )
 
-    Cp_boundary = Db * dCp_dx
+    Cl_boundary = (Dn * dCl_dx - X_nb * Cl * dCp_dx) * n
 
-    # 4) Return them as one tensor, do NOT re-flag requires_grad
-    return torch.cat([Cl_boundary.reshape(-1, 1), Cp_boundary], dim=1)
-    return torch.cat([[1], Cp_boundary], dim=1)
+    return torch.cat(
+        [Cl_boundary.reshape(-1, 1), torch.zeros_like(Cl_boundary.reshape(-1, 1))],
+        dim=1,
+    )
+
+
+def boundary_condition_cp(batch, model, Db, device):
+
+    t, x = batch
+
+    t = t.to(device).requires_grad_(True)
+    x = x.to(device).requires_grad_(True)
+
+    input_data = torch.cat([t, x], dim=1)
+
+    pred = model(input_data)
+
+    Cp = pred[:, 1:2]
+
+    dCp_dx = torch.autograd.grad(
+        Cp,
+        x,
+        grad_outputs=torch.ones_like(Cp),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    n = (
+        torch.tensor([-1.0, 1.0], dtype=pred.dtype, device=device)
+        .repeat(len(pred) // 2)
+        .reshape(-1, 1)
+    )
+
+    Cp_boundary = (Db * dCp_dx) * n
+
+    return torch.cat(
+        [torch.zeros_like(Cp_boundary.reshape(-1, 1)), Cp_boundary.reshape(-1, 1)],
+        dim=1,
+    )
 
 
 def generate_pde_points(num_points, device, t_upper):
@@ -448,44 +480,11 @@ def generate_pde_points(num_points, device, t_upper):
     )
 
 
-def generate_pde_source(original_source, h, batch, device):
-
-    _, x_batch = batch.tensor_split(2, dim=1)  # [B, 1]
-    x_domain = torch.arange(0, 1, h).view(-1, 1).to(device)  # [N, 1]
-
-    # Identify active source locations in x_domain
-    source_locs = x_domain[original_source.view(-1) == 1]  # shape [M, 1], where M ≤ N
-    source_locs
-
-    # Compute bounds
-    l_bound = source_locs - h  # [M, 1]
-    u_bound = source_locs + h  # [M, 1]
-
-    # Broadcast and check
-    x_batch_exp = x_batch[:, None, :]  # [B, 1, 1]
-    l_bound_exp = l_bound[None, :, :]  # [1, M, 1]
-    u_bound_exp = u_bound[None, :, :]  # [1, M, 1]
-
-    # Check if x_batch[i] is within any [l_bound[j], u_bound[j]]
-    in_range = (x_batch_exp > l_bound_exp) & (x_batch_exp < u_bound_exp)  # [B, M, 1]
-    match = in_range.any(dim=1)  # [B, 1]
-
-    # Generate new source
-    new_source = torch.zeros_like(x_batch)
-    new_source[match] = 1.0
-
-    return new_source
-
-
-def pde(
+def pde_cl(
     batch,
     model,
-    h,
-    cb,
     phi,
-    lambd_nb,
-    Db,
-    y_n,
+    gamma_n,
     Cn_max,
     lambd_bn,
     mi_n,
@@ -493,78 +492,102 @@ def pde(
     X_nb,
     device,
 ):
-
     t, x = batch
 
-    input_data = torch.cat([t, x], dim=1).to(device)
+    t = t.clone().detach().to(device).requires_grad_(True)
+    x = x.clone().detach().to(device).requires_grad_(True)
+
+    input_data = torch.cat([x, t], dim=1)
 
     pred = model(input_data)
 
-    dCl_dx = torch.autograd.grad(
-        pred[:, 0],
-        x,
-        torch.ones_like(pred[:, 0]),
-        create_graph=True,
-        retain_graph=True,
-    )[0].to(device)
+    Cl = pred[:, 0:1]
+    Cp = pred[:, 1:2]
 
     dCp_dx = torch.autograd.grad(
-        pred[:, 1],
-        x,
-        torch.ones_like(pred[:, 1]),
-        create_graph=True,
-        retain_graph=True,
-    )[0].to(device)
-
-    dCl_dt = torch.autograd.grad(
-        pred[:, 0],
-        t,
-        torch.ones_like(pred[:, 0]),
-        create_graph=True,
-        retain_graph=True,
-    )[0].to(device)
-
-    dCp_dt = torch.autograd.grad(
-        pred[:, 1],
-        t,
-        torch.ones_like(pred[:, 1]),
-        create_graph=True,
-        retain_graph=True,
-    )[0].to(device)
-
-    d2Cl_dx2 = torch.autograd.grad(
-        dCl_dx,
-        x,
-        torch.ones_like(dCl_dx),
-        create_graph=True,
-        retain_graph=True,
-    )[0].to(device)
+        Cp, x, grad_outputs=torch.ones_like(Cp), create_graph=True, retain_graph=True
+    )[0]
 
     d2Cp_dx2 = torch.autograd.grad(
         dCp_dx,
         x,
-        torch.ones_like(dCp_dx),
+        grad_outputs=torch.ones_like(dCp_dx),
         create_graph=True,
         retain_graph=True,
-    )[0].to(device)
+    )[0]
 
-    qn = y_n * pred[:, 1].ravel() * (Cn_max - pred[:, 0])  # [1000, 1]
+    dCl_dt = torch.autograd.grad(
+        Cl, t, grad_outputs=torch.ones_like(Cl), create_graph=True, retain_graph=True
+    )[0]
 
-    rn = lambd_bn * pred[:, 0].ravel() * pred[:, 1] + mi_n * pred[:, 0]  # [1000, 1]
+    dCl_dx = torch.autograd.grad(
+        Cl, x, grad_outputs=torch.ones_like(Cl), create_graph=True, retain_graph=True
+    )[0]
 
-    Cl_eq = (
-        Dn * d2Cl_dx2.ravel()
-        - X_nb * ((dCl_dx * dCp_dx).ravel() + pred[:, 0] * d2Cp_dx2.ravel())
-        - rn
-        + qn
-    ) - dCl_dt.ravel() * phi  # All shapes [1000, 1]
+    d2Cl_dx2 = torch.autograd.grad(
+        dCl_dx,
+        x,
+        grad_outputs=torch.ones_like(dCl_dx),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
 
-    qb = cb * pred[:, 1]
-    rb = lambd_nb * pred[:, 0].ravel() * pred[:, 1]
+    # Termos dos leucócitos
+    qn = gamma_n * Cp * (Cn_max - Cl)
+    rn = lambd_bn * Cl * Cp + mi_n * Cl
 
-    Cp_eq = (
-        Db * d2Cp_dx2.ravel() - rb + qb - dCp_dt.ravel() * phi
-    )  # All shapes [1000, 1]
+    chemotaxis_term = dCl_dx * dCp_dx + Cl * d2Cp_dx2
 
-    # return torch.cat([Cl_eq, Cp_eq], dim=1)
-    return torch.cat([Cl_eq.reshape(-1, 1), Cp_eq.reshape(-1, 1)], dim=1)
+    Cl_eq = Dn * d2Cl_dx2 - X_nb * chemotaxis_term - rn + qn - phi * dCl_dt
+
+    return torch.cat(
+        [Cl_eq.reshape(-1, 1), torch.zeros_like(Cl_eq.reshape(-1, 1))], dim=1
+    )
+
+
+def pde_cp(
+    batch,
+    model,
+    cb,
+    phi,
+    lambd_nb,
+    Db,
+    device,
+):
+    t, x = batch
+
+    t = t.clone().detach().to(device).requires_grad_(True)
+    x = x.clone().detach().to(device).requires_grad_(True)
+
+    input_data = torch.cat([x, t], dim=1)
+
+    pred = model(input_data)
+
+    Cl = pred[:, 0:1]
+    Cp = pred[:, 1:2]
+
+    dCp_dt = torch.autograd.grad(
+        Cp, t, grad_outputs=torch.ones_like(Cp), create_graph=True, retain_graph=True
+    )[0]
+
+    dCp_dx = torch.autograd.grad(
+        Cp, x, grad_outputs=torch.ones_like(Cp), create_graph=True, retain_graph=True
+    )[0]
+
+    d2Cp_dx2 = torch.autograd.grad(
+        dCp_dx,
+        x,
+        grad_outputs=torch.ones_like(dCp_dx),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    # Termos dos patógenos
+    qb = cb * Cp
+    rb = lambd_nb * Cl * Cp
+
+    Cp_eq = Db * d2Cp_dx2 - rb + qb - phi * dCp_dt
+
+    return torch.cat(
+        [torch.zeros_like(Cp_eq.reshape(-1, 1)), Cp_eq.reshape(-1, 1)], dim=1
+    )

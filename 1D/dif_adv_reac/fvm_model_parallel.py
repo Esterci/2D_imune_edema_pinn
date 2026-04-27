@@ -11,12 +11,12 @@ def cu_fb(Cb, Cn, i, j, cb, lambd_nb):
 
 # Função que descreve a taxa de variação da concentração de neutrófilos (Cn)
 @cuda.jit(device=True, fastmath=True)
-def cu_fn(Cb, Cn, source_points, i, j, y_n, Cn_max, lambd_bn, mi_n):
+def cu_fn(Cb, Cn, i, j, y_n, Cn_max, lambd_bn, mi_n):
     # Crescimento dos neutrófilos depende da presença de bactérias (Cb)
     # Também considera uma taxa de decaimento natural (mi_n) e a interação com
     # bactérias (lambd_bn)
     return (
-        y_n * Cb[i, j] * (Cn_max - Cn[i, j]) * source_points[i, j]
+        y_n * Cb[i, j] * (Cn_max - Cn[i, j])
         - lambd_bn * Cn[i, j] * Cb[i, j]
         - mi_n * Cn[i, j]
     )
@@ -43,7 +43,6 @@ def cu_solve_pde(
     Cn_buf_1,
     Cb_final,
     Cn_final,
-    leu_source_points,
     size_t,
     size_x,
     size_y,
@@ -181,10 +180,7 @@ def cu_solve_pde(
             / (h * h * phi)
             * (diff_Cn_right - diff_Cn_left + diff_Cn_up - diff_Cn_down)
             - (X_nb * k) / (h * h * phi) * (adv_right - adv_left + adv_up - adv_down)
-            + (k / phi)
-            * cu_fn(
-                Cb_old, Cn_old, leu_source_points, i, j, y_n, Cn_max, lambd_bn, mi_n
-            )
+            + (k / phi) * cu_fn(Cb_old, Cn_old, i, j, y_n, Cn_max, lambd_bn, mi_n)
             + Cn_old[i, j]
         )
 

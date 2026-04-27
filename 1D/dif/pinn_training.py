@@ -135,20 +135,16 @@ if __name__ == "__main__":
         sum(p.numel() for p in model.parameters() if p.requires_grad),
     )
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(beta1, beta2))
-
     trainer = Trainer(
         n_epochs=n_epochs,
         batch_size=batch_size,
         model=model,
         device=device,
-        # target=target,
-        # data=data_tc,
         patience=5000,
         tolerance=0.01,
-        # validation=0.2,
-        optimizer=optimizer,
+        betas=(beta1, beta2),
         print_steps=1e3,
+        adaptive=False
     )
 
     init_loss = LOSS(
