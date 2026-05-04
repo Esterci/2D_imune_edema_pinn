@@ -327,44 +327,12 @@ def generate_initial_points(num_points, device, center_x_tc, radius_tc, initial_
     )
 
 
-def initial_condition_cl(batch, model, center_x_tc, radius_tc, initial_tc, device):
+def initial_condition(batch, model, device):
     t, x = batch
 
     input_data = torch.cat([t, x], dim=1).to(device)
 
-    pred = model(input_data)
-
-    Cl_init = pred[:, 0:1]
-
-    euclidean_distances = ((x - center_x_tc.item()) ** 2) ** 0.5
-
-    inside_circle_mask = euclidean_distances <= radius_tc.item()
-
-    result = torch.cat([x, euclidean_distances, inside_circle_mask], dim=1)
-
-    Cp_init = torch.zeros((len(x), 1), dtype=torch.float64)
-
-    Cp_init = inside_circle_mask.to(device).ravel() * initial_tc.ravel()
-
-    return torch.cat(
-        [Cl_init.reshape(-1, 1), Cp_init.reshape(-1, 1)],
-        dim=1,
-    )
-
-
-def initial_condition_cp(batch, model, device):
-    t, x = batch
-
-    input_data = torch.cat([t, x], dim=1).to(device)
-
-    pred = model(input_data)
-
-    Cp_init = pred[:, 1:2]
-
-    return torch.cat(
-        [torch.zeros_like(Cp_init.reshape(-1, 1)), Cp_init.reshape(-1, 1)],
-        dim=1,
-    )
+    return model(input_data)
 
 
 def generate_boundary_points(num_points, device, t_upper):
@@ -385,7 +353,7 @@ def generate_boundary_points(num_points, device, t_upper):
     )
 
 
-def boundary_condition_cl(batch, model, Dn, X_nb, device):
+def boundary_condition(batch, model, Dn, X_nb, Db, device):
 
     t, x = batch
 
@@ -422,46 +390,9 @@ def boundary_condition_cl(batch, model, Dn, X_nb, device):
     )
 
     Cl_boundary = (Dn * dCl_dx - X_nb * Cl * dCp_dx) * n
-
-    return torch.cat(
-        [Cl_boundary.reshape(-1, 1), torch.zeros_like(Cl_boundary.reshape(-1, 1))],
-        dim=1,
-    )
-
-
-def boundary_condition_cp(batch, model, Db, device):
-
-    t, x = batch
-
-    t = t.to(device).requires_grad_(True)
-    x = x.to(device).requires_grad_(True)
-
-    input_data = torch.cat([t, x], dim=1)
-
-    pred = model(input_data)
-
-    Cp = pred[:, 1:2]
-
-    dCp_dx = torch.autograd.grad(
-        Cp,
-        x,
-        grad_outputs=torch.ones_like(Cp),
-        create_graph=True,
-        retain_graph=True,
-    )[0]
-
-    n = (
-        torch.tensor([-1.0, 1.0], dtype=pred.dtype, device=device)
-        .repeat(len(pred) // 2)
-        .reshape(-1, 1)
-    )
-
     Cp_boundary = (Db * dCp_dx) * n
 
-    return torch.cat(
-        [torch.zeros_like(Cp_boundary.reshape(-1, 1)), Cp_boundary.reshape(-1, 1)],
-        dim=1,
-    )
+    return torch.cat([Cl_boundary, Cp_boundary], dim=1)
 
 
 def generate_pde_points(num_points, device, t_upper):
@@ -480,10 +411,15 @@ def generate_pde_points(num_points, device, t_upper):
     )
 
 
-def pde_cl(
+def pde(
     batch,
     model,
+    T_f,
+    Cp0,
+    cb,
     phi,
+    lambd_nb,
+    Db,
     gamma_n,
     Cn_max,
     lambd_bn,
@@ -494,100 +430,82 @@ def pde_cl(
 ):
     t, x = batch
 
-    t = t.clone().detach().to(device).requires_grad_(True)
-    x = x.clone().detach().to(device).requires_grad_(True)
+    tau = t.clone().detach().to(device).requires_grad_(True) / T_f
+    chi = x.clone().detach().to(device).requires_grad_(True)
 
-    input_data = torch.cat([x, t], dim=1)
+    input_data = torch.cat([chi, tau], dim=1)
 
     pred = model(input_data)
 
     Cl = pred[:, 0:1]
     Cp = pred[:, 1:2]
 
-    dCp_dx = torch.autograd.grad(
-        Cp, x, grad_outputs=torch.ones_like(Cp), create_graph=True, retain_graph=True
-    )[0]
-
-    d2Cp_dx2 = torch.autograd.grad(
-        dCp_dx,
-        x,
-        grad_outputs=torch.ones_like(dCp_dx),
+    dCl_dx = torch.autograd.grad(
+        Cl,
+        chi,
+        torch.ones_like(Cl),
         create_graph=True,
         retain_graph=True,
-    )[0]
+    )[0].to(device)
+
+    dCp_dx = torch.autograd.grad(
+        Cp,
+        chi,
+        torch.ones_like(Cp),
+        create_graph=True,
+        retain_graph=True,
+    )[0].to(device)
 
     dCl_dt = torch.autograd.grad(
-        Cl, t, grad_outputs=torch.ones_like(Cl), create_graph=True, retain_graph=True
-    )[0]
+        Cl,
+        tau,
+        torch.ones_like(Cl),
+        create_graph=True,
+        retain_graph=True,
+    )[0].to(device)
 
-    dCl_dx = torch.autograd.grad(
-        Cl, x, grad_outputs=torch.ones_like(Cl), create_graph=True, retain_graph=True
-    )[0]
+    dCp_dt = torch.autograd.grad(
+        Cp,
+        tau,
+        torch.ones_like(Cp),
+        create_graph=True,
+        retain_graph=True,
+    )[0].to(device)
 
     d2Cl_dx2 = torch.autograd.grad(
         dCl_dx,
-        x,
-        grad_outputs=torch.ones_like(dCl_dx),
+        chi,
+        torch.ones_like(dCl_dx),
         create_graph=True,
         retain_graph=True,
-    )[0]
-
-    # Termos dos leucócitos
-    qn = gamma_n * Cp * (Cn_max - Cl)
-    rn = lambd_bn * Cl * Cp + mi_n * Cl
-
-    chemotaxis_term = dCl_dx * dCp_dx + Cl * d2Cp_dx2
-
-    Cl_eq = Dn * d2Cl_dx2 - X_nb * chemotaxis_term - rn + qn - phi * dCl_dt
-
-    return torch.cat(
-        [Cl_eq.reshape(-1, 1), torch.zeros_like(Cl_eq.reshape(-1, 1))], dim=1
-    )
-
-
-def pde_cp(
-    batch,
-    model,
-    cb,
-    phi,
-    lambd_nb,
-    Db,
-    device,
-):
-    t, x = batch
-
-    t = t.clone().detach().to(device).requires_grad_(True)
-    x = x.clone().detach().to(device).requires_grad_(True)
-
-    input_data = torch.cat([x, t], dim=1)
-
-    pred = model(input_data)
-
-    Cl = pred[:, 0:1]
-    Cp = pred[:, 1:2]
-
-    dCp_dt = torch.autograd.grad(
-        Cp, t, grad_outputs=torch.ones_like(Cp), create_graph=True, retain_graph=True
-    )[0]
-
-    dCp_dx = torch.autograd.grad(
-        Cp, x, grad_outputs=torch.ones_like(Cp), create_graph=True, retain_graph=True
-    )[0]
+    )[0].to(device)
 
     d2Cp_dx2 = torch.autograd.grad(
         dCp_dx,
-        x,
-        grad_outputs=torch.ones_like(dCp_dx),
+        chi,
+        torch.ones_like(dCp_dx),
         create_graph=True,
         retain_graph=True,
-    )[0]
+    )[0].to(device)
+
+    # Termos dos leucócitos
+    qn = (gamma_n * Cp0 * T_f / phi) * Cp * (1 - Cl)
+    rn = (lambd_bn * Cp0 * T_f / phi) * Cl * Cp + (mi_n * T_f / phi) * Cl
+
+    chemotaxis_term = dCl_dx * dCp_dx + Cl * d2Cp_dx2
+
+    Cl_eq = (
+        (Dn * T_f / phi) * d2Cl_dx2
+        - (X_nb * Cp0 * T_f / phi) * chemotaxis_term
+        - rn
+        + qn
+        - dCl_dt
+    )
 
     # Termos dos patógenos
-    qb = cb * Cp
-    rb = lambd_nb * Cl * Cp
+    qb = (cb * T_f / phi) * Cp
+    rb = (lambd_nb * Cn_max * T_f / (phi)) * Cl * Cp
 
-    Cp_eq = Db * d2Cp_dx2 - rb + qb - phi * dCp_dt
+    Cp_eq = (Db * T_f / (phi)) * d2Cp_dx2 - rb + qb - dCp_dt
 
-    return torch.cat(
-        [torch.zeros_like(Cp_eq.reshape(-1, 1)), Cp_eq.reshape(-1, 1)], dim=1
-    )
+    return torch.cat([Cl_eq, Cp_eq], dim=1)

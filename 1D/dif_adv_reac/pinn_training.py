@@ -147,80 +147,54 @@ if __name__ == "__main__":
         adaptive=True,
     )
 
-    init_loss_cl = LOSS(
+    init_loss = LOSS(
         device=device,
         name="Inital",
         batch_size=pinn_batch,
         criterium="MSE",
     )
 
-    init_loss_cl.setBatchGenerator(
+    init_loss.setBatchGenerator(
         generate_initial_points, center_x_tc, radius_tc, initial_tc
     )
 
-    init_loss_cl.setEvalFunction(
-        initial_condition_cl,
-        center_x_tc,
-        radius_tc,
-        initial_tc,
+    init_loss.setEvalFunction(
+        initial_condition,
         device,
     )
 
-    trainer.add_loss(init_loss_cl, 10)
+    trainer.add_loss(init_loss)
 
-    init_loss_cp = LOSS(
-        device=device,
-        name="Inital",
-        batch_size=pinn_batch,
-        criterium="MSE",
-    )
-
-    init_loss_cp.setBatchGenerator(
-        generate_initial_points, center_x_tc, radius_tc, initial_tc
-    )
-
-    init_loss_cp.setEvalFunction(initial_condition_cp, device)
-
-    trainer.add_loss(init_loss_cp, 10)
-
-    bnd_loss_cl = LOSS(
-        device=device,
-        name="Boundary Cl",
-        batch_size=pinn_batch,
-        criterium="MSE",
-    )
-
-    bnd_loss_cl.setBatchGenerator(generate_boundary_points, t_dom[1])
-
-    bnd_loss_cl.setEvalFunction(boundary_condition_cl, Dn, X_nb, device)
-
-    trainer.add_loss(bnd_loss_cl)
-
-    bnd_loss_cp = LOSS(
+    bnd_loss = LOSS(
         device=device,
         name="Boundary",
         batch_size=pinn_batch,
         criterium="MSE",
     )
 
-    bnd_loss_cp.setBatchGenerator(generate_boundary_points, t_dom[1])
+    bnd_loss.setBatchGenerator(generate_boundary_points, t_dom[1])
 
-    bnd_loss_cp.setEvalFunction(boundary_condition_cp, Dn, device)
+    bnd_loss.setEvalFunction(boundary_condition, Dn, X_nb, Db, device)
 
-    trainer.add_loss(bnd_loss_cp)
+    trainer.add_loss(bnd_loss)
 
-    pde_cl_loss = LOSS(
+    pde_loss = LOSS(
         device=device,
-        name="PDE leukocytes",
+        name="PDE",
         batch_size=pinn_batch,
         criterium="MSE",
     )
 
-    pde_cl_loss.setBatchGenerator(generate_pde_points, t_dom[1])
+    pde_loss.setBatchGenerator(generate_pde_points, t_dom[1])
 
-    pde_cl_loss.setEvalFunction(
-        pde_cl,
+    pde_loss.setEvalFunction(
+        pde,
+        t_dom[-1],
+        initial_tc,
+        cb,
         phi,
+        lambd_nb,
+        Db,
         y_n,
         Cn_max,
         lambd_bn,
@@ -230,27 +204,7 @@ if __name__ == "__main__":
         device,
     )
 
-    trainer.add_loss(pde_cl_loss)
-
-    pde_cp_loss = LOSS(
-        device=device,
-        name="PDE pathogens",
-        batch_size=pinn_batch,
-        criterium="MSE",
-    )
-
-    pde_cp_loss.setBatchGenerator(generate_pde_points, t_dom[1])
-
-    pde_cp_loss.setEvalFunction(
-        pde_cp,
-        cb,
-        phi,
-        lambd_nb,
-        Db,
-        device,
-    )
-
-    trainer.add_loss(pde_cp_loss)
+    trainer.add_loss(pde_loss)
 
     reduced_data_tc = reduced_data_tc.detach()
     reduced_target = reduced_target.detach()
