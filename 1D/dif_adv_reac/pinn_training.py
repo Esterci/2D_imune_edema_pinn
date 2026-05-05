@@ -3,6 +3,7 @@ import os
 import json
 from pinn import *
 import argparse
+from sklearn.model_selection import KFold
 
 # Parsing model parameters
 
