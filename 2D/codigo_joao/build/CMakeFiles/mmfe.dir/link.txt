@@ -1,1 +1,0 @@
-/usr/bin/cc CMakeFiles/mmfe.dir/main.c.o CMakeFiles/mmfe.dir/source/mdf2d.c.o CMakeFiles/mmfe.dir/source/msh.c.o CMakeFiles/mmfe.dir/source/tinymt64.c.o -o mmfe  -lm /usr/lib/gcc/x86_64-redhat-linux/11/libgomp.so /usr/lib64/libpthread.a 

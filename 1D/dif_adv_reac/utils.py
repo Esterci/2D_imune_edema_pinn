@@ -126,3 +126,37 @@ def init_mesh(
     )
 
     return (size_x, size_y, size_t, struct_name)
+
+
+def read_speed_ups(speed_up_list):
+    speed_up_obj = {}
+    for i, file in enumerate(speed_up_list):
+        with open(file, "rb") as f:
+            speed_up_obj[i] = pk.load(f)
+
+    return speed_up_obj
+
+
+def summarize_fvm_times(speed_up_obj):
+    serial_times = np.array(
+        [speed_up_obj[i]["serial_time"] for i in speed_up_obj.keys()]
+    )
+
+    cuda_times = np.array([speed_up_obj[i]["cuda_time"] for i in speed_up_obj.keys()])
+
+    speed_ups = np.array([speed_up_obj[i]["speed_up"] for i in speed_up_obj.keys()])
+
+    speed_comp_ups = np.array(
+        [speed_up_obj[i]["speed_comp_up"] for i in speed_up_obj.keys()]
+    )
+
+    return {
+        "mean_serial_time": float(np.mean(serial_times)),
+        "std_serial_time": float(np.std(serial_times, ddof=1)),
+        "mean_cuda_time": float(np.mean(cuda_times)),
+        "std_cuda_time": float(np.std(cuda_times, ddof=1)),
+        "mean_speed_up": float(np.mean(speed_ups)),
+        "std_speed_up": float(np.std(speed_ups, ddof=1)),
+        "mean_speed_comp_up": float(np.mean(speed_comp_ups)),
+        "std_speed_comp_up": float(np.std(speed_comp_ups, ddof=1)),
+    }

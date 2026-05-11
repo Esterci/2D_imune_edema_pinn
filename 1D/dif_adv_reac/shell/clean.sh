@@ -28,7 +28,7 @@ case "$1" in
         echo "Cleaning all PINN files..."
         find learning_curves/ -type f -name "*.pkl" -delete
         find nn_parameters/ -type f -name "*.pt" -delete
-        find pinn_sim/ -type f -name "*.pkl" -delete
+        find nn_sim/ -type f -name "*.pkl" -delete
         ;;
     pinn-training)
         echo "Cleaning PINN training files..."
@@ -37,7 +37,7 @@ case "$1" in
         ;;
     pinn-inference)
         echo "Cleaning PINN inference files..."
-        find pinn_sim/ -type f -name "*.pkl" -delete
+        find nn_sim/ -type f -name "*.pkl" -delete
         ;;
     all)
         echo "Cleaning all files..."
@@ -48,7 +48,7 @@ case "$1" in
         find fvm_animations/ -type f -name "*.mp4" -delete
         find learning_curves/ -type f -name "*.pkl" -delete
         find nn_parameters/ -type f -name "*.pt" -delete
-        find pinn_sim/ -type f -name "*.pkl" -delete
+        find nn_sim/ -type f -name "*.pkl" -delete
         ;;
     *)
         usage

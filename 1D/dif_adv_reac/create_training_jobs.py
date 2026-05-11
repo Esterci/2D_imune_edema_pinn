@@ -202,7 +202,7 @@ def simple_loop(
                             write_setup(count, chunck_size)
 
                         add_line(
-                            "time ~/.conda/envs/torch-numba-11/bin/python3 pinn_training.py "
+                            "time ~/.conda/envs/torch-numba-11/bin/python3 pinn_grid_search.py "
                             + " -a "
                             + str(arch_str)
                             + " -b1 "
@@ -264,7 +264,7 @@ def combination_loop(
                         write_setup(count, chunck_size)
 
                     add_line(
-                        "time ~/.conda/envs/torch-numba-11/bin/python3 pinn_training.py "
+                        "time ~/.conda/envs/torch-numba-11/bin/python3 pinn_grid_search.py "
                         + " -a "
                         + str(arch_str)
                         + " -b1 "

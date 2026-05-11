@@ -305,6 +305,59 @@ def allocates_training_mesh(
     )
 
 
+def evaluate_model(model, data_test, target_test, reference_time, device):
+    """
+    Avalia o modelo no conjunto de teste.
+
+    Retorna:
+        error:
+            erro absoluto ponto a ponto
+
+        test_time:
+            tempo de inferência
+
+        speed_up:
+            speed up
+
+        pred:
+            predição do modelo
+    """
+
+    model.eval()
+
+    data_test = data_test.to(device)
+
+    target_test = target_test.cpu().detach().numpy()
+
+    if device.type == "cuda":
+        torch.cuda.synchronize()
+
+    start = time.time()
+
+    with torch.no_grad():
+
+        pred = model(data_test).cpu().detach().numpy()
+
+    if device.type == "cuda":
+        torch.cuda.synchronize()
+
+    end = time.time()
+
+    test_time = end - start
+
+    # erro absoluto ponto a ponto
+    error = np.abs(pred - target_test)
+
+    speed_up = reference_time / test_time
+
+    return (
+        error,
+        test_time,
+        speed_up,
+        pred,
+    )
+
+
 def generate_initial_points(num_points, device, center_x_tc, radius_tc, initial_tc):
 
     t = torch.zeros(num_points, 1, dtype=torch.float64)
@@ -509,3 +562,185 @@ def pde(
     Cp_eq = (Db * T_f / (phi)) * d2Cp_dx2 - rb + qb - dCp_dt
 
     return torch.cat([Cl_eq, Cp_eq], dim=1)
+
+
+def pinn_training(
+    n_epochs,
+    batch_size,
+    model,
+    device,
+    beta1,
+    beta2,
+    pinn_batch,
+    center_x_tc,
+    radius_tc,
+    initial_tc,
+    t_dom,
+    Dn,
+    X_nb,
+    Db,
+    cb,
+    phi,
+    lambd_nb,
+    y_n,
+    Cn_max,
+    lambd_bn,
+    mi_n,
+    data_tc,
+    target,
+):
+
+    trainer = Trainer(
+        n_epochs=n_epochs,
+        batch_size=batch_size,
+        model=model,
+        device=device,
+        patience=5000,
+        tolerance=0.01,
+        betas=(beta1, beta2),
+        print_steps=1e3,
+        adaptive=True,
+    )
+
+    init_loss = LOSS(
+        device=device,
+        name="Inital",
+        batch_size=pinn_batch,
+        criterium="MSE",
+    )
+
+    init_loss.setBatchGenerator(
+        generate_initial_points, center_x_tc, radius_tc, initial_tc
+    )
+
+    init_loss.setEvalFunction(
+        initial_condition,
+        device,
+    )
+
+    trainer.add_loss(init_loss)
+
+    bnd_loss = LOSS(
+        device=device,
+        name="Boundary",
+        batch_size=pinn_batch,
+        criterium="MSE",
+    )
+
+    bnd_loss.setBatchGenerator(generate_boundary_points, t_dom[1])
+
+    bnd_loss.setEvalFunction(boundary_condition, Dn, X_nb, Db, device)
+
+    trainer.add_loss(bnd_loss)
+
+    pde_loss = LOSS(
+        device=device,
+        name="PDE",
+        batch_size=pinn_batch,
+        criterium="MSE",
+    )
+
+    pde_loss.setBatchGenerator(generate_pde_points, t_dom[1])
+
+    pde_loss.setEvalFunction(
+        pde,
+        t_dom[-1],
+        initial_tc,
+        cb,
+        phi,
+        lambd_nb,
+        Db,
+        y_n,
+        Cn_max,
+        lambd_bn,
+        mi_n,
+        Dn,
+        X_nb,
+        device,
+    )
+
+    trainer.add_loss(pde_loss)
+
+    data_loss = LOSS(
+        device,
+        name="Data Loss",
+        batch_size=batch_size,
+        criterium="MSE",
+    )
+
+    data_loss.add_data(
+        data_tc,
+        target,
+    )
+
+    trainer.add_loss(data_loss)
+
+    start = time.time()
+
+    model, loss_dict = trainer.train()
+
+    end = time.time()
+
+    pinn_time = end - start
+
+    del trainer
+
+    return model, loss_dict, pinn_time
+
+
+def nn_training(
+    n_epochs,
+    batch_size,
+    model,
+    device,
+    beta1,
+    beta2,
+    data_tc,
+    target,
+):
+
+    trainer = Trainer(
+        n_epochs=n_epochs,
+        batch_size=batch_size,
+        model=model,
+        device=device,
+        patience=5000,
+        tolerance=0.01,
+        betas=(beta1, beta2),
+        print_steps=1e3,
+        adaptive=True,
+    )
+
+    data_loss = LOSS(
+        device,
+        name="Data Loss",
+        batch_size=batch_size,
+        criterium="MSE",
+    )
+
+    data_loss.add_data(
+        data_tc,
+        target,
+    )
+
+    trainer.add_loss(data_loss)
+
+    start = time.time()
+
+    model, loss_dict = trainer.train()
+
+    end = time.time()
+
+    nn_time = end - start
+
+    del trainer
+
+    return model, loss_dict, nn_time
+
+
+def main():
+    return 0
+
+
+if __name__ == "__main__":
+    main()
