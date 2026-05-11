@@ -119,7 +119,7 @@ Cn_buf_1 = cuda.device_array_like(Cn_buf_0)
 Cb_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
 Cn_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
 
-cu_solve_pde[threadsperblock, blockspergrid](
+cu_solve_pde[blockspergrid, threadsperblock](
     Cb_buf_0,
     Cn_buf_0,
     Cb_buf_1,
@@ -173,7 +173,7 @@ Cn_buf_1 = cuda.device_array_like(Cn_buf_0)
 Cb_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
 Cn_final_device = cuda.to_device(np.zeros((size_t, size_x, size_y)))
 
-cu_solve_pde[threadsperblock, blockspergrid](
+cu_solve_pde[blockspergrid, threadsperblock](
     Cb_buf_0,
     Cn_buf_0,
     Cb_buf_1,
