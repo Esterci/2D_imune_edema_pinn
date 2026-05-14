@@ -5,13 +5,21 @@ import time
 
 sim_list = glob.glob("nn_parameters/*")
 
-n_hd_layers = [2, 3, 4, 5, 6, 7]
+# n_hd_layers = [2, 3, 4, 5, 6, 7]
 
-n_neurons = [2**4, 2**5, 2**6]
+n_hd_layers = [6]
 
-betas1 = np.linspace(0.6, 0.9, num=5, endpoint=True, dtype=np.float32)
+# n_neurons = [2**4, 2**5, 2**6]
 
-betas2 = np.linspace(0.99, 0.9999, num=5, endpoint=True, dtype=np.float32)
+n_neurons = [2**6]
+
+# betas1 = np.linspace(0.6, 0.9, num=5, endpoint=True, dtype=np.float32)
+
+betas1 = [0.9]
+
+# betas2 = np.linspace(0.99, 0.9999, num=5, endpoint=True, dtype=np.float32)
+
+betas2 = [0.9999]
 
 count = 0
 

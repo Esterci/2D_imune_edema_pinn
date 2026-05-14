@@ -175,10 +175,6 @@ def main():
         data_test = data_tc[test_idx].clone().detach()
         target_test = target[test_idx].clone().detach()
 
-        initial_fold = initial_tc.clone().detach().requires_grad_(True)
-        center_x_fold = center_x_tc.clone().detach().requires_grad_(True)
-        radius_fold = radius_tc.clone().detach().requires_grad_(True)
-
         batch_size = max(int(len(data_train) / 10), 1)
 
         # =====================================================
