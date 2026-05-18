@@ -9,5 +9,6 @@
     "y_n": 0.1,
     "Cn_max": 550,
     "X_nb": 1e-1,
-    "central_ini_cond": 0.6
+    "b": 6,
+    "c": 2
 }

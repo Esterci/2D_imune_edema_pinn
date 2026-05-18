@@ -107,7 +107,8 @@ def main():
     y_n = constant_properties["y_n"]
     Cn_max = constant_properties["Cn_max"]
     X_nb = constant_properties["X_nb"]
-    central_ini_cond = constant_properties["central_ini_cond"]
+    b = constant_properties["b"]
+    c = constant_properties["c"]
 
     # Opening JSON file
     with open("control_dicts/mesh_properties.json", "r") as openfile:
@@ -128,7 +129,7 @@ def main():
 
     reference_time = read_speed_ups(speed_up_list)[0]["serial_time"]
 
-    print(center, radius, central_ini_cond)
+    print(center, radius, b, c)
 
     (
         initial_tc,
@@ -143,7 +144,7 @@ def main():
         size_t,
         size_x,
         center[0],
-        central_ini_cond,
+        b,
         radius,
         Cl_fvm,
         Cp_fvm,
@@ -226,7 +227,8 @@ def main():
             pinn_batch,
             center_x_tc,
             radius_tc,
-            initial_tc,
+            b,
+            c,
             t_dom,
             Dn,
             X_nb,

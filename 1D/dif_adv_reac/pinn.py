@@ -368,23 +368,46 @@ def evaluate_model(model, data_test, target_test, reference_time, device):
     )
 
 
-def generate_initial_points(num_points, device, center_x_tc, radius_tc, initial_tc):
+def generate_initial_points(num_points, device, b, c, a=0.3):
+    """
+    Gera os pontos iniciais para a PINN em t = 0.
 
-    t = torch.zeros(num_points, 1, dtype=torch.float64)
+    A concentração inicial de bactérias/patógenos segue:
 
-    x = torch.rand(num_points, 1, dtype=torch.float64)
+        cb(x) = exp(-(((x - a) * b) ** 2)) / c
 
-    euclidean_distances = ((x - center_x_tc.item()) ** 2) ** 0.5
+    assumindo que:
+        C_init[:, 0] = Cl
+        C_init[:, 1] = Cp ou Cb
+    """
 
-    inside_circle_mask = euclidean_distances <= radius_tc.item()
+    t = torch.zeros(
+        num_points, 1, dtype=torch.float64, device=device, requires_grad=True
+    )
 
-    C_init = torch.zeros((len(x), 2), dtype=torch.float64)
+    x = torch.rand(
+        num_points, 1, dtype=torch.float64, device=device, requires_grad=True
+    )
 
-    C_init[:, 1] = inside_circle_mask.to(device).ravel() * initial_tc.ravel()
+    # Garante que b e c estejam no mesmo device e tipo
+    b = torch.as_tensor(b, dtype=torch.float64, device=device)
+    c = torch.as_tensor(c, dtype=torch.float64, device=device)
+    a = torch.as_tensor(a, dtype=torch.float64, device=device)
+
+    # Condição inicial gaussiana
+    cb_init = torch.exp(-(((x - a) * b) ** 2)) / c
+
+    C_init = torch.zeros(num_points, 2, dtype=torch.float64, device=device)
+
+    # Mantém Cl inicial como zero
+    C_init[:, 0] = 0.0
+
+    # Aplica a condição inicial em Cp/Cb
+    C_init[:, 1:2] = cb_init
 
     return (
-        (t.requires_grad_(True), x.requires_grad_(True)),
-        C_init.to(device),
+        (t, x),
+        C_init,
     )
 
 
@@ -673,7 +696,8 @@ def pinn_training(
     pinn_batch,
     center_x_tc,
     radius_tc,
-    initial_tc,
+    b,
+    c,
     t_dom,
     Dn,
     X_nb,
@@ -713,7 +737,9 @@ def pinn_training(
     )
 
     init_loss.setBatchGenerator(
-        generate_initial_points, center_x_tc, radius_tc, initial_tc
+        generate_initial_points,
+        b,
+        c,
     )
 
     init_loss.setEvalFunction(
@@ -760,7 +786,7 @@ def pinn_training(
         min_cl,
         min_cp,
         t_dom[-1],
-        initial_tc,
+        0.5,
     )
 
     trainer.add_loss(pde_cl_loss)
@@ -786,7 +812,7 @@ def pinn_training(
         min_cl,
         min_cp,
         t_dom[-1],
-        initial_tc,
+        0.5,
         Cn_max,
     )
 

@@ -21,12 +21,15 @@ def fn(Cb, Cn, i, j, y_n, Cn_max, lambd_bn, mi_n):
 
 
 # Função para aplicar condições iniciais à concentração de bactérias (Cb)
-def apply_initial_conditions(ini_cond, Cb, cx, cy, radius, size_x, size_y):
-    for i in range(size_x):
-        for j in range(size_y):
-            # Calculate distance from center to each point
-            if (i - cx) ** 2 + (j - cy) ** 2 <= radius**2:
-                Cb[i][j] = ini_cond  # Set point inside the circle to 1
+def apply_initial_conditions(Cb, b, c, size_x):
+
+    x = np.linspace(0, 1, num=size_x, endpoint=False)
+
+    a = 0.3
+
+    cb = np.exp(-(((x - a) * b) ** 2)) / c
+
+    Cb[:, 0] = cb
 
     return Cb
 
@@ -48,7 +51,8 @@ def solve_pde(
     y_n,
     Cn_max,
     X_nb,
-    initial_cond,
+    b,
+    c,
     center,
     radius,
     verbose=False,
@@ -68,9 +72,7 @@ def solve_pde(
     cy_disc = cy_real / h
     radius_disc = radius / h
 
-    Cb_new = apply_initial_conditions(
-        initial_cond, Cb_new, cx_disc, cy_disc, radius_disc, size_x, size_y
-    )
+    Cb_new = apply_initial_conditions(Cb_new, b, c, size_x)
 
     # Armazenando as condições iniciais
     Cb_final[0] = Cb_new

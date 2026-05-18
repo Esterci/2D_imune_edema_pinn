@@ -28,7 +28,8 @@ lambd_bn = constant_properties["lambd_bn"]
 y_n = constant_properties["y_n"]
 Cn_max = constant_properties["Cn_max"]
 X_nb = constant_properties["X_nb"]
-central_ini_cond = constant_properties["central_ini_cond"]
+b = constant_properties["b"]
+c = constant_properties["c"]
 
 h = mesh_properties["h"]
 k = mesh_properties["k"]
@@ -78,7 +79,8 @@ Cb, Cn = solve_pde(
     y_n,
     Cn_max,
     X_nb,
-    central_ini_cond,
+    b,
+    c,
     center=center,
     radius=radius,
     verbose=False,
@@ -141,7 +143,7 @@ cu_solve_pde[blockspergrid, threadsperblock](
     y_n,
     Cn_max,
     X_nb,
-    central_ini_cond,
+    b,
     center,
     radius,
 )
@@ -195,7 +197,7 @@ cu_solve_pde[blockspergrid, threadsperblock](
     y_n,
     Cn_max,
     X_nb,
-    central_ini_cond,
+    b,
     center,
     radius,
 )
