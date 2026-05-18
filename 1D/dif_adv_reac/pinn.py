@@ -206,6 +206,7 @@ def allocates_training_mesh(
     Cl_fvm,
     Cp_fvm,
     samples_percent=None,
+    shuffle=False,
 ):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -249,6 +250,15 @@ def allocates_training_mesh(
         np.array([Cl_fvm.ravel(), Cp_fvm.ravel()]).T,
         dtype=torch.float64,
     ).to(device)
+
+    if shuffle:
+        data_tc = data_tc.detach()
+        target = target.detach()
+
+        idx = torch.randperm(data_tc.shape[0])
+
+        data_tc = data_tc[idx].clone()
+        data_tc = target[idx].clone()
 
     if samples_percent is not None:
 
@@ -368,8 +378,6 @@ def generate_initial_points(num_points, device, center_x_tc, radius_tc, initial_
 
     inside_circle_mask = euclidean_distances <= radius_tc.item()
 
-    result = torch.cat([x, euclidean_distances, inside_circle_mask], dim=1)
-
     C_init = torch.zeros((len(x), 2), dtype=torch.float64)
 
     C_init[:, 1] = inside_circle_mask.to(device).ravel() * initial_tc.ravel()
@@ -464,15 +472,10 @@ def generate_pde_points(num_points, device, t_upper):
     )
 
 
-def pde(
+def pde_cl(
     batch,
     model,
-    T_f,
-    Cp0,
-    cb,
     phi,
-    lambd_nb,
-    Db,
     gamma_n,
     Cn_max,
     lambd_bn,
@@ -480,88 +483,184 @@ def pde(
     Dn,
     X_nb,
     device,
+    delta_cl,
+    delta_cp,
+    min_cl,
+    min_cp,
+    T_f,
+    Cp0,
+    L=1.0,
 ):
     t, x = batch
 
-    tau = t.clone().detach().to(device).requires_grad_(True) / T_f
-    chi = x.clone().detach().to(device).requires_grad_(True)
+    # Variáveis adimensionais de entrada
+    tau = (t.clone().detach().to(device) / T_f).requires_grad_(True)
+    xi = (x.clone().detach().to(device) / L).requires_grad_(True)
 
-    input_data = torch.cat([chi, tau], dim=1)
+    input_data = torch.cat([xi, tau], dim=1)
 
     pred = model(input_data)
 
-    Cl = pred[:, 0:1]
-    Cp = pred[:, 1:2]
+    # Saídas normalizadas da rede
+    Cl_hat = pred[:, 0:1]
+    Cp_hat = pred[:, 1:2]
 
-    dCl_dx = torch.autograd.grad(
-        Cl,
-        chi,
-        torch.ones_like(Cl),
-        create_graph=True,
-        retain_graph=True,
-    )[0].to(device)
+    # Variáveis físicas/desnormalizadas
+    Cl = Cl_hat * delta_cl + min_cl
+    Cp = Cp_hat * delta_cp + min_cp
 
-    dCp_dx = torch.autograd.grad(
-        Cp,
-        chi,
-        torch.ones_like(Cp),
-        create_graph=True,
-        retain_graph=True,
-    )[0].to(device)
+    # Variáveis adimensionais
+    Cl_bar = Cl / Cn_max
+    Cp_bar = Cp / Cp0
 
-    dCl_dt = torch.autograd.grad(
-        Cl,
+    # Derivadas adimensionais
+    dCl_dtau = torch.autograd.grad(
+        Cl_bar,
         tau,
-        torch.ones_like(Cl),
+        grad_outputs=torch.ones_like(Cl_bar),
         create_graph=True,
         retain_graph=True,
-    )[0].to(device)
+    )[0]
 
-    dCp_dt = torch.autograd.grad(
-        Cp,
-        tau,
-        torch.ones_like(Cp),
+    dCl_dxi = torch.autograd.grad(
+        Cl_bar,
+        xi,
+        grad_outputs=torch.ones_like(Cl_bar),
         create_graph=True,
         retain_graph=True,
-    )[0].to(device)
+    )[0]
 
-    d2Cl_dx2 = torch.autograd.grad(
-        dCl_dx,
-        chi,
-        torch.ones_like(dCl_dx),
+    dCp_dxi = torch.autograd.grad(
+        Cp_bar,
+        xi,
+        grad_outputs=torch.ones_like(Cp_bar),
         create_graph=True,
         retain_graph=True,
-    )[0].to(device)
+    )[0]
 
-    d2Cp_dx2 = torch.autograd.grad(
-        dCp_dx,
-        chi,
-        torch.ones_like(dCp_dx),
+    d2Cl_dxi2 = torch.autograd.grad(
+        dCl_dxi,
+        xi,
+        grad_outputs=torch.ones_like(dCl_dxi),
         create_graph=True,
         retain_graph=True,
-    )[0].to(device)
+    )[0]
 
-    # Termos dos leucócitos
-    qn = (gamma_n * Cp0 * T_f / phi) * Cp * (1 - Cl)
-    rn = (lambd_bn * Cp0 * T_f / phi) * Cl * Cp + (mi_n * T_f / phi) * Cl
+    d2Cp_dxi2 = torch.autograd.grad(
+        dCp_dxi,
+        xi,
+        grad_outputs=torch.ones_like(dCp_dxi),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
 
-    chemotaxis_term = dCl_dx * dCp_dx + Cl * d2Cp_dx2
+    # Números adimensionais
+    diffusion_coef = Dn * T_f / (phi * L**2)
+    chemotaxis_coef = X_nb * Cp0 * T_f / (phi * L**2)
+    reaction_coef = lambd_bn * Cp0 * T_f / phi
+    apoptosis_coef = mi_n * T_f / phi
+    source_coef = gamma_n * Cp0 * T_f / phi
 
+    # Termo de quimiotaxia adimensional
+    chemotaxis_term = dCl_dxi * dCp_dxi + Cl_bar * d2Cp_dxi2
+
+    # Resíduo adimensional da EDP dos leucócitos
     Cl_eq = (
-        (Dn * T_f / phi) * d2Cl_dx2
-        - (X_nb * Cp0 * T_f / phi) * chemotaxis_term
-        - rn
-        + qn
-        - dCl_dt
+        diffusion_coef * d2Cl_dxi2
+        - chemotaxis_coef * chemotaxis_term
+        - reaction_coef * Cl_bar * Cp_bar
+        - apoptosis_coef * Cl_bar
+        + source_coef * Cp_bar * (1 - Cl_bar)
+        - dCl_dtau
     )
 
-    # Termos dos patógenos
-    qb = (cb * T_f / phi) * Cp
-    rb = (lambd_nb * Cn_max * T_f / (phi)) * Cl * Cp
+    return torch.cat(
+        [Cl_eq.reshape(-1, 1), torch.zeros_like(Cl_eq.reshape(-1, 1))],
+        dim=1,
+    )
 
-    Cp_eq = (Db * T_f / (phi)) * d2Cp_dx2 - rb + qb - dCp_dt
 
-    return torch.cat([Cl_eq, Cp_eq], dim=1)
+def pde_cp(
+    batch,
+    model,
+    cb,
+    phi,
+    lambd_nb,
+    Db,
+    device,
+    delta_cl,
+    delta_cp,
+    min_cl,
+    min_cp,
+    T_f,
+    Cp0,
+    Cn_max,
+    L=1.0,
+):
+    t, x = batch
+
+    # Variáveis adimensionais de entrada
+    tau = (t.clone().detach().to(device) / T_f).requires_grad_(True)
+    xi = (x.clone().detach().to(device) / L).requires_grad_(True)
+
+    input_data = torch.cat([xi, tau], dim=1)
+
+    pred = model(input_data)
+
+    # Saídas normalizadas da rede
+    Cl_hat = pred[:, 0:1]
+    Cp_hat = pred[:, 1:2]
+
+    # Variáveis físicas/desnormalizadas
+    Cl = Cl_hat * delta_cl + min_cl
+    Cp = Cp_hat * delta_cp + min_cp
+
+    # Variáveis adimensionais
+    Cl_bar = Cl / Cn_max
+    Cp_bar = Cp / Cp0
+
+    # Derivadas adimensionais
+    dCp_dtau = torch.autograd.grad(
+        Cp_bar,
+        tau,
+        grad_outputs=torch.ones_like(Cp_bar),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    dCp_dxi = torch.autograd.grad(
+        Cp_bar,
+        xi,
+        grad_outputs=torch.ones_like(Cp_bar),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    d2Cp_dxi2 = torch.autograd.grad(
+        dCp_dxi,
+        xi,
+        grad_outputs=torch.ones_like(dCp_dxi),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+
+    # Números adimensionais
+    diffusion_coef = Db * T_f / (phi * L**2)
+    death_coef = lambd_nb * Cn_max * T_f / phi
+    growth_coef = cb * T_f / phi
+
+    # Resíduo adimensional da EDP dos patógenos
+    Cp_eq = (
+        diffusion_coef * d2Cp_dxi2
+        - death_coef * Cl_bar * Cp_bar
+        + growth_coef * Cp_bar
+        - dCp_dtau
+    )
+
+    return torch.cat(
+        [torch.zeros_like(Cp_eq.reshape(-1, 1)), Cp_eq.reshape(-1, 1)],
+        dim=1,
+    )
 
 
 def pinn_training(
@@ -588,6 +687,10 @@ def pinn_training(
     mi_n,
     data_tc,
     target,
+    delta_cl,
+    delta_cp,
+    min_cl,
+    min_cp,
 ):
 
     trainer = Trainer(
@@ -633,23 +736,18 @@ def pinn_training(
 
     trainer.add_loss(bnd_loss)
 
-    pde_loss = LOSS(
+    pde_cl_loss = LOSS(
         device=device,
-        name="PDE",
+        name="PDE leukocytes",
         batch_size=pinn_batch,
         criterium="MSE",
     )
 
-    pde_loss.setBatchGenerator(generate_pde_points, t_dom[1])
+    pde_cl_loss.setBatchGenerator(generate_pde_points, t_dom[1])
 
-    pde_loss.setEvalFunction(
-        pde,
-        t_dom[-1],
-        initial_tc,
-        cb,
+    pde_cl_loss.setEvalFunction(
+        pde_cl,
         phi,
-        lambd_nb,
-        Db,
         y_n,
         Cn_max,
         lambd_bn,
@@ -657,9 +755,42 @@ def pinn_training(
         Dn,
         X_nb,
         device,
+        delta_cl,
+        delta_cp,
+        min_cl,
+        min_cp,
+        t_dom[-1],
+        initial_tc,
     )
 
-    trainer.add_loss(pde_loss)
+    trainer.add_loss(pde_cl_loss)
+
+    pde_cp_loss = LOSS(
+        device=device,
+        name="PDE pathogens",
+        batch_size=pinn_batch,
+        criterium="MSE",
+    )
+
+    pde_cp_loss.setBatchGenerator(generate_pde_points, t_dom[1])
+
+    pde_cp_loss.setEvalFunction(
+        pde_cp,
+        cb,
+        phi,
+        lambd_nb,
+        Db,
+        device,
+        delta_cl,
+        delta_cp,
+        min_cl,
+        min_cp,
+        t_dom[-1],
+        initial_tc,
+        Cn_max,
+    )
+
+    trainer.add_loss(pde_cp_loss)
 
     data_loss = LOSS(
         device,

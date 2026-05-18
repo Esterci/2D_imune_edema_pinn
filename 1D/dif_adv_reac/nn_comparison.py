@@ -8,9 +8,9 @@ import numpy as np
 from pinn import *
 from utils import *
 from sklearn.model_selection import KFold
+from grid_search import normalize_target
 
-
-arch_str = "ReLU--32__Tanh--32__ReLU--32__Tanh--32__ReLU--32"
+arch_str = "Tanh--32__Tanh--32__Tanh--32__Tanh--32__Tanh--32"
 
 beta1 = 0.9
 beta2 = 0.9999
@@ -88,9 +88,7 @@ def calculate_taylor_metrics(pred, ref, variable_names=("Cl", "Cp")):
             correlation = np.corrcoef(y_ref, y_pred)[0, 1]
 
         centered_rmse = np.sqrt(
-            np.mean(
-                ((y_pred - mean_pred) - (y_ref - mean_ref)) ** 2
-            )
+            np.mean(((y_pred - mean_pred) - (y_ref - mean_ref)) ** 2)
         )
 
         rmse = np.sqrt(np.mean((y_pred - y_ref) ** 2))
@@ -232,6 +230,8 @@ def main():
 
             target_all = target.detach().cpu().clone()
 
+            min_cl, min_cp, delta_cl, delta_cp, target_norm = normalize_target(target)
+
             pinn_fold_mae = []
             nn_fold_mae = []
 
@@ -264,7 +264,7 @@ def main():
 
                 with torch.no_grad():
                     data_train = data_tc[train_idx]
-                    target_train_clean = target[train_idx]
+                    target_train_clean = target_norm[train_idx]
 
                     target_train = add_white_gaussian_noise(
                         target_train_clean,
@@ -273,7 +273,7 @@ def main():
                     )
 
                     data_test = data_tc[test_idx]
-                    target_test = target[test_idx]
+                    target_test = target_norm[test_idx]
                     target_test_cpu = target_test.detach().cpu()
 
                 batch_size = max(int(len(data_train) / 10), 1)
@@ -287,11 +287,7 @@ def main():
                 print("\nPINN")
                 print(
                     "Number of parameters:",
-                    sum(
-                        p.numel()
-                        for p in pinn_model.parameters()
-                        if p.requires_grad
-                    ),
+                    sum(p.numel() for p in pinn_model.parameters() if p.requires_grad),
                 )
 
                 pinn_model, _, train_time = pinn_training(
@@ -318,6 +314,10 @@ def main():
                     mi_n,
                     data_train,
                     target_train,
+                    delta_cl,
+                    delta_cp,
+                    min_cl,
+                    min_cp,
                 )
 
                 pinn_pred = predict_model(
@@ -353,11 +353,7 @@ def main():
                 print("\nNN")
                 print(
                     "Number of parameters:",
-                    sum(
-                        p.numel()
-                        for p in nn_model.parameters()
-                        if p.requires_grad
-                    ),
+                    sum(p.numel() for p in nn_model.parameters() if p.requires_grad),
                 )
 
                 nn_model, _, train_time = nn_training(
@@ -422,7 +418,9 @@ def main():
 
             suffix = f"noise--{noise_level}__pct--{percent}"
 
-            with open(f"experiments/pinn__prediction_all__{suffix}.pkl", "wb") as openfile:
+            with open(
+                f"experiments/pinn__prediction_all__{suffix}.pkl", "wb"
+            ) as openfile:
                 pk.dump(
                     {
                         "pred": pinn_pred_all,
@@ -432,7 +430,9 @@ def main():
                     openfile,
                 )
 
-            with open(f"experiments/nn__prediction_all__{suffix}.pkl", "wb") as openfile:
+            with open(
+                f"experiments/nn__prediction_all__{suffix}.pkl", "wb"
+            ) as openfile:
                 pk.dump(
                     {
                         "pred": nn_pred_all,

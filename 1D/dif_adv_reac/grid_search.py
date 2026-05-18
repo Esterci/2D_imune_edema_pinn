@@ -59,6 +59,25 @@ parser.add_argument(
 )
 
 
+def normalize_target(target, eps=1e-12):
+    with torch.no_grad():
+        min_cl = torch.min(target[:, 0])
+        min_cp = torch.min(target[:, 1])
+
+        max_cl = torch.max(target[:, 0])
+        max_cp = torch.max(target[:, 1])
+
+        delta_cl = max_cl - min_cl
+        delta_cp = max_cp - min_cp
+
+        target_norm = target.clone()
+
+        target_norm[:, 0] = (target[:, 0] - min_cl) / (delta_cl + eps)
+        target_norm[:, 1] = (target[:, 1] - min_cp) / (delta_cp + eps)
+
+    return min_cl, min_cp, delta_cl, delta_cp, target_norm
+
+
 def main():
 
     args = parser.parse_args()
@@ -163,6 +182,14 @@ def main():
     pinn_best_pred = None
     nn_best_pred = None
 
+    pinn_best_target = None
+    nn_best_target = None
+
+    pinn_best_data = None
+    nn_best_data = None
+
+    min_cl, min_cp, delta_cl, delta_cp, target_norm = normalize_target(target)
+
     for fold, (train_idx, test_idx) in enumerate(kfold.split(data_tc)):
 
         print("\n" + "=" * 30)
@@ -170,10 +197,10 @@ def main():
         print("=" * 30)
 
         data_train = data_tc[train_idx].clone().detach()
-        target_train = target[train_idx].clone().detach()
+        target_train = target_norm[train_idx].clone().detach()
 
         data_test = data_tc[test_idx].clone().detach()
-        target_test = target[test_idx].clone().detach()
+        target_test = target_norm[test_idx].clone().detach()
 
         batch_size = max(int(len(data_train) / 10), 1)
 
@@ -213,6 +240,10 @@ def main():
             mi_n,
             data_train,
             target_train,
+            delta_cl,
+            delta_cp,
+            min_cl,
+            min_cp,
         )
 
         error, test_time, speed_up, pred = evaluate_model(
@@ -236,6 +267,10 @@ def main():
             pinn_best_param = copy.deepcopy(pinn_model.state_dict())
 
             pinn_best_pred = pred
+
+            pinn_best_target = target_test
+
+            pinn_best_data = data_test
 
         # =====================================================
         # NN
@@ -281,6 +316,10 @@ def main():
             nn_best_param = copy.deepcopy(nn_model.state_dict())
 
             nn_best_pred = pred
+
+            nn_best_target = target_test
+
+            nn_best_data = data_test
 
         del pinn_model
         del nn_model
@@ -346,7 +385,14 @@ def main():
 
     with open("nn_sim/pinn__prediction_" + pinn_name + ".pkl", "wb") as openfile:
         # Reading from json file
-        pk.dump(pinn_best_pred, openfile)
+        pk.dump(
+            {
+                "pred": pinn_best_pred,
+                "target": pinn_best_target,
+                "data": pinn_best_data,
+            },
+            openfile,
+        )
 
     torch.save(nn_best_param, "nn_parameters/nn__" + pinn_name + ".pt")
 
@@ -359,7 +405,10 @@ def main():
 
     with open("nn_sim/nn__prediction_" + pinn_name + ".pkl", "wb") as openfile:
         # Reading from json file
-        pk.dump(nn_best_pred, openfile)
+        pk.dump(
+            {"pred": nn_best_pred, "target": nn_best_target, "data": nn_best_data},
+            openfile,
+        )
 
     return 0
 
